@@ -1,0 +1,90 @@
+/* ===== Minimal safe base ===== */
+html, body, #root {
+  height: 100%;
+}
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --header-h: 64px;      /* adjust if your header height differs */
+  --accent: #007bff;     /* active nav pill color */
+  --text: #333;
+  --bg: #fff;
+  --border: #e5e5e5;
+}
+
+/* ===== Header (fixed) ===== */
+.site-header {
+  position: fixed;       /* keep it pinned */
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg); /* force white, avoids color bleed */
+  z-index: 1000;
+}
+
+.brand {
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ===== Nav ===== */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;       /* allow wrap on small screens */
+  background: transparent; /* guard against global styles */
+}
+
+.nav-link {
+  display: inline-flex;  /* ensure pill is only as wide as content */
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  background: transparent;             /* no full-width blue bar */
+  border: 1px solid transparent;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.nav-link:hover {
+  background: #f5f5f5;
+}
+
+.nav-link.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.site-main {
+  display: block;
+  padding-top: var(--header-h);   /* was calc(var(--header-h) + 8px) */
+  padding-bottom: 64px;           /* keep your bottom padding if you like */
+  background: #fff;
+}
+
+
+/* Optional: keep internal boxes from picking up weird background */
+.site-main > * {
+  background: transparent;
+  padding-bottom: 32px;
+}
+
+/* ===== Small screens ===== */
+@media (max-width: 600px) {
+  :root { --header-h: 72px; } /* if your header grows on mobile */
+  .site-main {
+    padding-top: 0;
+  }
+}

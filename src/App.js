@@ -1,24 +1,26 @@
-import logo from './logo.svg';
+import React, { Suspense } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
+import Home from './pages/Home';
+import PracticeBuilder from './pages/PracticeBuilder';
+import SetsLibrary from './pages/SetsLibrary';
+import NotFound from './pages/NotFound';
 import './App.css';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <Suspense fallback={<div style={{padding: 20}}>Loading…</div>}>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route path="builder" element={<PracticeBuilder />} />
+            <Route path="library" element={<SetsLibrary />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
   );
 }
 

@@ -1,0 +1,280 @@
+/* ================== Page wrapper (keeps below header) ================== */
+:root { --builder-header-offset: 0; } /* adjust if your header differs */
+
+.builder-page {
+  display: block;
+  width: 100%;
+  padding-top: 0;
+  background: transparent;
+}
+
+/* ================== Core layout ================== */
+.app-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+.header {
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 12px;
+  margin: 0 0 0;
+}
+
+/* ================== Sections / inputs ================== */
+.practice-section {
+  margin-bottom: 30px;
+  border-top: 1px solid #ccc;
+  padding-top: 20px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  position: relative;   /* helps DnD pointer capture */
+  z-index: 1;
+}
+
+.section-name-input {
+  font-size: 1.2rem;
+  padding: 6px;
+  flex-grow: 1;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.practice-input {
+  resize: vertical;
+  min-height: 100px;
+  padding: 10px;
+  font-size: 1rem;
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  tab-size: 2;          /* small tabs in editor */
+  -moz-tab-size: 2;
+}
+
+.break-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.break-inline .section-name-input { flex: 1; }
+
+.break-inline .break-input {
+  width: 100px;
+  padding: 6px 10px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.drag-handle {
+  appearance: none;
+  background: #eef2f7;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;          /* icon color */
+  cursor: grab;
+  margin-right: 8px;
+}
+.drag-handle:active { cursor: grabbing; }
+.drag-handle svg { display: block; }
+
+.delete-btn {
+  background: crimson;
+  border: none;
+  color: white;
+  padding: 6px 10px;
+  font-size: 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ================== Add buttons ================== */
+.add-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.add-btn {
+  padding: 10px 16px;
+  font-size: 1rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.add-btn.light { background-color: #6c757d; }
+
+/* ================== Preview toggle ================== */
+.preview-btn {
+  margin-top: 30px;
+  padding: 10px 16px;
+  font-size: 1rem;
+  background-color: #333;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ================== Preview ================== */
+.preview-panel {
+  margin-top: 20px;
+  padding: 20px;
+  background: #fff !important;      /* keep readable even if globals exist */
+  color: #111 !important;
+  border: 1px solid #ccc;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 11px !important;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  tab-size: 2;                       /* small tabs in preview */
+  -moz-tab-size: 2;
+}
+
+.preview-panel * {
+  font-family: inherit !important;
+  font-size: inherit !important;
+}
+
+.preview-section { 
+  margin-bottom: 24px; 
+}
+
+.preview-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.preview-title-left { font-weight: 700; }
+.preview-title-right { font-weight: 600; white-space: nowrap; }
+
+.preview-line {
+  font-weight: 400;     /* normal text */
+  padding-left: 1rem;   /* indent */
+  tab-size: inherit;
+}
+
+.preview-break {
+  font-weight: 400;
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+  padding-left: 0;
+}
+
+.preview-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 16px;
+  border-top: 1px solid #ddd;
+  padding-top: 12px;
+}
+.preview-total-left { font-weight: 700; }
+.preview-total-right { font-weight: 700; white-space: nowrap; }
+
+/* ================== Small helpers ================== */
+.yardage-display {
+  color: #444;
+  font-weight: 400;
+}
+
+.total-yardage {
+  margin-top: 20px;
+  font-weight: bold;
+  font-size: 1.2rem;
+  text-align: right;
+}
+
+/* --- HARD LAYOUT RESET just for the Practice Builder page --- */
+
+/* Keep the whole page above any backgrounds and below the header */
+.builder-page {
+  position: relative;
+  z-index: 1;
+  padding-top: 0 !important; /* space below fixed header; tweak if needed */
+}
+
+/* Kill the blue and force vertical stacking */
+.builder-page,
+.builder-page .app-container,
+.builder-page .practice-section,
+.builder-page .preview-panel {
+  background: #fff !important;
+}
+
+/* Force the main container and all its direct children to stack vertically */
+.builder-page .app-container {
+  display: block !important;
+  max-width: 800px !important;
+  margin: 0 auto !important;
+  padding: 0 20px 20px;
+}
+
+.builder-page .app-container > * {
+  display: block !important;
+  width: 100% !important;
+}
+
+/* No line before the very first section and no extra gap */
+.builder-page .app-container .practice-section:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+/* Sections must not float or grid into columns */
+.builder-page .practice-section {
+  float: none !important;
+  clear: both !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  position: static !important;
+}
+
+/* Neutralize any inherited grid/flex on ancestors */
+.site-main {
+  display: block !important;
+  padding-top: 96px !important;  /* ensure content is below the fixed header */
+  background: #fff !important;
+}
+
+/* Ensure header rows capture pointer events for drag */
+.section-header,
+.break-inline {
+  position: relative !important;
+  z-index: 2 !important;
+  pointer-events: auto !important;
+}
+
+/* Add bottom space AFTER all content, not between elements */
+.app-container::after {
+  content: "";
+  display: block;
+  height: 48px;           /* space below the last element */
+}
+
+/* Give a bit more room when the preview is visible */
+.app-container.preview-open::after {
+  height: 96px;           /* tweak to taste */
+}
