@@ -1,5 +1,9 @@
 /* ================== Page wrapper (keeps below header) ================== */
-:root { --builder-header-offset: 0; } /* adjust if your header differs */
+:root {
+  --builder-header-offset: 0;
+}
+
+/* adjust if your header differs */
 
 .builder-page {
   display: block;
@@ -35,7 +39,8 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
-  position: relative;   /* helps DnD pointer capture */
+  position: relative;
+  /* helps DnD pointer capture */
   z-index: 1;
 }
 
@@ -45,6 +50,7 @@
   flex-grow: 1;
   border-radius: 6px;
   border: 1px solid #ccc;
+  white-space: normal;
 }
 
 .practice-input {
@@ -55,7 +61,8 @@
   width: 100%;
   border: 1px solid #ccc;
   border-radius: 6px;
-  tab-size: 2;          /* small tabs in editor */
+  tab-size: 2;
+  /* small tabs in editor */
   -moz-tab-size: 2;
 }
 
@@ -67,7 +74,9 @@
   z-index: 1;
 }
 
-.break-inline .section-name-input { flex: 1; }
+.break-inline .section-name-input {
+  flex: 1;
+}
 
 .break-inline .break-input {
   width: 100px;
@@ -87,12 +96,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #475569;          /* icon color */
+  color: #475569;
+  /* icon color */
   cursor: grab;
   margin-right: 8px;
 }
-.drag-handle:active { cursor: grabbing; }
-.drag-handle svg { display: block; }
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle svg {
+  display: block;
+}
 
 .delete-btn {
   background: crimson;
@@ -105,10 +121,12 @@
 }
 
 /* ================== Add buttons ================== */
+/* Put space between Add buttons */
 .add-buttons {
   display: flex;
   gap: 10px;
-  margin-top: 20px;
+  /* <-- space between "+ Add Section" and "+ Add Break" */
+  margin-bottom: 10px;
 }
 
 .add-btn {
@@ -121,32 +139,58 @@
   cursor: pointer;
 }
 
-.add-btn.light { background-color: #6c757d; }
+.add-btn.light {
+  background-color: #6c757d;
+}
 
 /* ================== Preview toggle ================== */
 .preview-btn {
-  margin-top: 30px;
-  padding: 10px 16px;
-  font-size: 1rem;
-  background-color: #333;
-  color: white;
+  min-width: 132px;
+  /* keeps “Show/Hide Preview” same width */
+  height: 36px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
+  background: #2b2b2b;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .12);
   cursor: pointer;
+  transition: transform .06s, opacity .15s;
+  min-width: 132px;
+}
+
+.preview-btn:hover {
+  opacity: 0.95;
+}
+
+.preview-btn:active {
+  transform: translateY(1px);
+}
+
+.preview-btn.light {
+  background: #e5e7eb;
+  color: #111827;
 }
 
 /* ================== Preview ================== */
 .preview-panel {
   margin-top: 20px;
   padding: 20px;
-  background: #fff !important;      /* keep readable even if globals exist */
+  background: #fff !important;
+  /* keep readable even if globals exist */
   color: #111 !important;
   border: 1px solid #ccc;
   font-family: Arial, Helvetica, sans-serif !important;
   font-size: 11px !important;
   line-height: 1.4;
   white-space: pre-wrap;
-  tab-size: 2;                       /* small tabs in preview */
+  tab-size: 2;
+  /* small tabs in preview */
   -moz-tab-size: 2;
 }
 
@@ -155,8 +199,8 @@
   font-size: inherit !important;
 }
 
-.preview-section { 
-  margin-bottom: 24px; 
+.preview-section {
+  margin-bottom: 24px;
 }
 
 .preview-title-row {
@@ -166,12 +210,21 @@
   gap: 12px;
   margin-bottom: 8px;
 }
-.preview-title-left { font-weight: 700; }
-.preview-title-right { font-weight: 600; white-space: nowrap; }
+
+.preview-title-left {
+  font-weight: 700;
+}
+
+.preview-title-right {
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 .preview-line {
-  font-weight: 400;     /* normal text */
-  padding-left: 1rem;   /* indent */
+  font-weight: 400;
+  /* normal text */
+  padding-left: 1rem;
+  /* indent */
   tab-size: inherit;
 }
 
@@ -190,8 +243,15 @@
   border-top: 1px solid #ddd;
   padding-top: 12px;
 }
-.preview-total-left { font-weight: 700; }
-.preview-total-right { font-weight: 700; white-space: nowrap; }
+
+.preview-total-left {
+  font-weight: 700;
+}
+
+.preview-total-right {
+  font-weight: 700;
+  white-space: nowrap;
+}
 
 /* ================== Small helpers ================== */
 .yardage-display {
@@ -212,7 +272,8 @@
 .builder-page {
   position: relative;
   z-index: 1;
-  padding-top: 0 !important; /* space below fixed header; tweak if needed */
+  padding-top: 0 !important;
+  /* space below fixed header; tweak if needed */
 }
 
 /* Kill the blue and force vertical stacking */
@@ -231,7 +292,7 @@
   padding: 0 20px 20px;
 }
 
-.builder-page .app-container > * {
+.builder-page .app-container>* {
   display: block !important;
   width: 100% !important;
 }
@@ -255,7 +316,8 @@
 /* Neutralize any inherited grid/flex on ancestors */
 .site-main {
   display: block !important;
-  padding-top: 96px !important;  /* ensure content is below the fixed header */
+  padding-top: 96px !important;
+  /* ensure content is below the fixed header */
   background: #fff !important;
 }
 
@@ -271,10 +333,61 @@
 .app-container::after {
   content: "";
   display: block;
-  height: 48px;           /* space below the last element */
+  height: 48px;
+  /* space below the last element */
 }
 
 /* Give a bit more room when the preview is visible */
 .app-container.preview-open::after {
-  height: 96px;           /* tweak to taste */
+  height: 96px;
+  /* tweak to taste */
+}
+
+/* Top bar layout */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  /* allow wrapping on smaller screens */
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.topbar .actions {
+  display: flex;
+  gap: 8px;
+  /* spacing between buttons */
+}
+
+.topbar .meta-fields {
+  display: flex;
+  gap: 12px;
+  /* spacing between Date / Roster / Start */
+  align-items: center;
+}
+
+.topbar .pair {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.topbar input,
+.topbar select {
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  height: 32px;
+}
+
+/* Toolbar layout */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0 14px;
 }

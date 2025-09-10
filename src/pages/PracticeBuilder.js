@@ -2,6 +2,9 @@
 import React, { useState, useMemo } from 'react';
 import './PracticeBuilder.css';
 import { parseYardage } from '../utils/yardageParser';
+import { createPractice, exportPracticeDocx } from "../api/practices";
+import { listSwimmers } from "../api/swimmers";
+
 
 import {
   DndContext,
@@ -19,6 +22,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
 
 /* ---------- Helpers ---------- */
 // Formats numbers with commas (1000 -> "1,000")
@@ -150,6 +154,111 @@ function PracticeBuilder() {
     }
   };
 
+  // ---- Top controls state ----
+  const [practiceDate, setPracticeDate] = useState(() =>
+    new Date().toISOString().slice(0, 10) // "YYYY-MM-DD"
+  );
+  const [rosterOptions, setRosterOptions] = useState([]); // e.g., ["Yellow", "Blue", "White", "Bronze", "Silver", "Gold", "Platinum", "Gold/Platinum"]
+  const [selectedRoster, setSelectedRoster] = useState("");
+
+  // Load roster options from swimmers' groups (unique list)
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const swimmers = await listSwimmers();
+        const groups = new Set();
+        swimmers.forEach(s => (s.groups || []).forEach(g => g && groups.add(g)));
+        // Fallback if none found
+        const opts = Array.from(groups);
+        setRosterOptions(opts.length ? opts : ["Yellow", "Blue", "White", "Bronze", "Silver", "Gold", "Platinum", "Gold/Platinum"]);
+        if (!selectedRoster && (opts.length ? opts[0] : "Gold/Platinum")) {
+          setSelectedRoster(opts.length ? opts[0] : "Gold/Platinum");
+        }
+      } catch (e) {
+        // If the API isn't ready, show defaults
+        const fallback = ["Yellow", "Blue", "White", "Bronze", "Silver", "Gold", "Platinum", "Gold/Platinum"];
+        setRosterOptions(fallback);
+        if (!selectedRoster) setSelectedRoster(fallback[0]);
+        console.warn("Could not load swimmers; using default rosters.", e);
+      }
+    })();
+  }, []);
+
+  // ---- Save handler (update your existing one) ----
+  async function handleSavePractice() {
+    try {
+      const title = "Practice " + new Date().toLocaleDateString();
+      const date = practiceDate;              // use picker value
+      const pool = "SCY";                     // change if you have a unit state
+
+      const sectionsForApi = sections.map((s, i) => ({
+        type: s.type === "break" ? "Break" : (s.name || "Section"),
+        title: s.name || (s.type === "break" ? "Break" : "Section"),
+        text: s.content || "",
+        yardage: sectionYardages[i] ?? 0,
+        timeSeconds: sectionTimes[i] ?? 0,
+      }));
+
+      const totals = { yardage: totalYardage, timeSeconds: totalTimeSec };
+
+      await createPractice({
+        title,
+        date,
+        pool,
+        roster: selectedRoster,   // <-- NEW: saves roster
+        sections: sectionsForApi,
+        totals,
+      });
+
+      alert("✅ Practice saved!");
+    } catch (e) {
+      console.error(e);
+      alert("❌ Save failed. Check console.");
+    }
+  }
+
+  // helper: keep it purely string-based (no Date())
+  function formatMDY(yyyyMmDd) {
+    if (!yyyyMmDd || !/^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd)) return "";
+    const [y, m, d] = yyyyMmDd.split("-");
+    return `${m}/${d}/${y}`;
+  }
+
+  async function handleExportDocx() {
+    try {
+      const niceDate = formatMDY(practiceDate);
+      const title = `Practice ${niceDate}${selectedRoster ? ` ${selectedRoster}` : ""}`;
+      const pool = "SCM"; // or your unit state
+
+      const sectionsForApi = sections.map((s, i) => ({
+        type: s.type === "break" ? "Break" : (s.name || "Section"),
+        title: s.name || (s.type === "break" ? "Break" : "Section"),
+        text: s.content || "",
+        yardage: sectionYardages[i] ?? 0,
+        timeSeconds: sectionTimes[i] ?? 0,
+      }));
+
+      const totals = { yardage: totalYardage, timeSeconds: totalTimeSec };
+
+      const payload = {
+        title,                 // you already build: "Practice mm/dd/yyyy — Roster"
+        date: practiceDate,
+        roster: selectedRoster,
+        pool,
+        startTime,             // <-- NEW
+        sections: sectionsForApi,
+        totals,
+      };
+
+
+      const out = await exportPracticeDocx(payload);
+      alert(`✅ Exported to:\n${out.filePath}`);
+    } catch (e) {
+      console.error(e);
+      alert("❌ Export failed. Check console.");
+    }
+  }
+
   const addSwimSection = () => {
     const newId = Date.now().toString();
     setSections([...sections, { id: newId, name: 'New Section', type: 'swim', content: '' }]);
@@ -177,11 +286,78 @@ function PracticeBuilder() {
 
   const totalYardage = sectionYardages.reduce((sum, v) => sum + v, 0);
   const totalTimeSec = sectionTimes.reduce((sum, v) => sum + v, 0);
+  // NEW: start time (24h HH:MM)
+  const [startTime, setStartTime] = useState("06:00");
+
+  function ceilToMinute(sec = 0) {
+    const s = Math.max(0, Math.floor(sec));
+    if (s % 60 === 0) return s;           // exactly on a minute → keep it
+    return Math.ceil(s / 60) * 60;        // otherwise round up to the next minute
+  }
+
+  function secondsFromHHMM(hhmm = "06:00") {
+    const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(String(hhmm).trim());
+    if (!m) return 0;
+    const h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+    const min = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+    const s = m[3] ? Math.min(59, Math.max(0, parseInt(m[3], 10))) : 0;
+    return h * 3600 + min * 60 + s;
+  }
+  function formatClock12(totalSecFromMidnight, showSeconds = false) {
+    let s = ((totalSecFromMidnight % 86400) + 86400) % 86400;
+    const h24 = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const ampm = h24 >= 12 ? "PM" : "AM";
+    const h12 = ((h24 + 11) % 12) + 1;
+    const mm = String(m).padStart(2, "0");
+    const ss = String(sec).padStart(2, "0");
+    return showSeconds ? `${h12}:${mm}:${ss} ${ampm}` : `${h12}:${mm} ${ampm}`;
+  }
+
+  const sectionEndClocks = useMemo(() => {
+    let clock = secondsFromHHMM(startTime);         // seconds from midnight for Start:
+    return sectionTimes.map((dur) => {
+      const endExact = clock + (dur || 0);          // exact end (includes seconds)
+      const endDisplay = ceilToMinute(endExact);    // rounded UP for display
+      clock = endExact;                              // advance by exact, not rounded
+      return endDisplay;                             // we display the rounded value
+    });
+  }, [sectionTimes, startTime]);
+
 
   return (
     <div className="builder-page">
       <div className="app-container">
         <h1 className="header">Practice Builder</h1>
+        {/* Top bar */}
+        <div className="topbar">
+          <div className="meta-fields">
+            <label className="pair">
+              <span>Date:</span>
+              <input type="date" value={practiceDate} onChange={(e) => setPracticeDate(e.target.value)} />
+            </label>
+            <label className="pair">
+              <span>Roster:</span>
+              <select value={selectedRoster} onChange={(e) => setSelectedRoster(e.target.value)}>
+                <option>Yellow</option>
+                <option>Senior</option>
+                <option>Blue</option>
+              </select>
+            </label>
+            <label className="pair">
+              <span>Start:</span>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                step={60}
+              />
+            </label>
+          </div>
+        </div>
+
+
 
         <DndContext
           sensors={sensors}
@@ -216,14 +392,23 @@ function PracticeBuilder() {
           </SortableContext>
         </DndContext>
 
-        <div className="add-buttons">
-          <button className="add-btn" onClick={addSwimSection}>+ Add Section</button>
-          <button className="add-btn light" onClick={addBreakSection}>+ Add Break</button>
+
+        <div className="topbar">
+          <div className="add-buttons">
+            <button className="add-btn" onClick={addSwimSection}>+ Add Section</button>
+            <button className="add-btn light" onClick={addBreakSection}>+ Add Break</button>
+          </div>
+          <div className="actions">
+            <button className="preview-btn" onClick={handleSavePractice}>💾 Save Practice</button>
+            <button className="preview-btn" onClick={() => setShowPreview(!showPreview)}>
+              {showPreview ? 'Hide Preview' : 'Show Preview'}
+            </button>
+            <button className="preview-btn" onClick={handleExportDocx}>⬇️ Export Word</button>
+          </div>
         </div>
 
-        <button className="preview-btn" onClick={() => setShowPreview(!showPreview)}>
-          {showPreview ? 'Hide Preview' : 'Show Preview'}
-        </button>
+
+
 
         {showPreview && (
           <div className="preview-panel">
@@ -240,8 +425,11 @@ function PracticeBuilder() {
                       {sectionYardages[index] > 0 ? ` – ${formatYardage(sectionYardages[index])}m` : ''}
                     </div>
                     <div className="preview-title-right">
-                      {sectionTimes[index] > 0 ? `${formatSeconds(sectionTimes[index])}` : ''}
+                      {sectionTimes[index] > 0
+                        ? `${formatSeconds(sectionTimes[index])} \u2192 ${formatClock12(sectionEndClocks[index], false)}`
+                        : ''}
                     </div>
+
                   </div>
 
                   {section.content.split('\n').map((line, i) => (
@@ -291,6 +479,7 @@ function SortableSection({ section, onChange, onDelete, yardage, timeSec }) {
             placeholder="Break Name"
             value={section.name}
             onChange={(e) => onChange(section.id, 'name', e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
           />
           <input
             type="text"
@@ -298,24 +487,29 @@ function SortableSection({ section, onChange, onDelete, yardage, timeSec }) {
             placeholder="e.g. 5:00"
             value={section.content}
             onChange={(e) => onChange(section.id, 'content', e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
           />
+
           <button className="delete-btn" onClick={() => onDelete(section.id)}>❌</button>
         </div>
       ) : (
         <>
-          <div className="section-header" {...attributes} {...listeners}>
+          <div className="section-header">
             <button className="drag-handle" aria-label="Drag section" {...attributes} {...listeners}>
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </button>
+
             <input
               type="text"
               className="section-name-input"
               value={section.name}
               onChange={(e) => onChange(section.id, 'name', e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
             />
-            {yardage > 0 && <span className="yardage-display">– {formatYardage(yardage)}m</span>}
+
+            {yardage > 0 && <span className="yardage-display"> {formatYardage(yardage)}m</span>}
             {timeSec > 0 && <span className="yardage-display"> @ {formatSeconds(timeSec)}</span>}
             <button className="delete-btn" onClick={() => onDelete(section.id)}>❌</button>
           </div>
@@ -326,18 +520,15 @@ function SortableSection({ section, onChange, onDelete, yardage, timeSec }) {
             value={section.content}
             onChange={(e) => onChange(section.id, 'content', e.target.value)}
             onKeyDown={(e) => {
+              e.stopPropagation();                                // ← IMPORTANT
               if (e.key === 'Tab') {
                 e.preventDefault();
                 const el = e.target;
                 const { selectionStart, selectionEnd } = el;
                 const updated =
-                  section.content.slice(0, selectionStart) +
-                  '\t' +
-                  section.content.slice(selectionEnd);
+                  section.content.slice(0, selectionStart) + '\t' + section.content.slice(selectionEnd);
                 onChange(section.id, 'content', updated);
-                setTimeout(() => {
-                  el.selectionStart = el.selectionEnd = selectionStart + 1;
-                }, 0);
+                setTimeout(() => { el.selectionStart = el.selectionEnd = selectionStart + 1; }, 0);
               }
             }}
           />
