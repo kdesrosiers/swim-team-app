@@ -1,68 +1,118 @@
 # Swim Team App
 
-A web application for building, saving, exporting, and organizing swim team practices.  
-This project is built with **React** (frontend) and **Node.js + Express + MongoDB** (backend).  
-It is currently in active development.
+A web application for managing swim team practices, rosters, and training libraries.  
+Built with **React** (frontend) and **Node.js/Express + MongoDB** (backend).  
 
 ---
 
-## Features (Current)
+## 🚀 Features
 
 ### Practice Builder
-- Create structured practices with sections (Warm Up, Pre-Set, Main Set, Cool Down, Breaks).
-- Drag-and-drop reordering of sections.
-- Live yardage and time calculation:
-  - Parses sets like `3x100 Free @ 1:30`.
-  - Handles nested repeat blocks (`3x { 4x50 Free @ :50 }`).
-- Start time tracking → displays rolling section end times.
-- Practice metadata:
-  - Date picker
-  - Roster group selection (from config)
-  - Pool type dropdown (**SCM, SCY, LCM**)
-- Export practices to formatted **Word documents** (`.docx`) with:
-  - Titles
-  - Totals (yardage, time)
-  - Section formatting
-  - Aligned end times
-- Save practices to MongoDB.
-- New **Save & Export** button (save to DB *and* generate `.docx` at once).
+- Drag-and-drop interface for building practices
+- Section types: Warmup, Main Set, Break, etc.
+- Live yardage and time calculation
+- Start time and per-section clock tracking
+- Export practices to **Word (.docx)** with formatted output
+- Save practices to MongoDB with:
+  - Date
+  - Roster
+  - Pool type (SCM, SCY, LCM)
+  - Sections with yardage/time totals
+- Config-driven defaults:
+  - Default roster
+  - Default warmups per roster
+  - Practice schedules per roster
 
 ### Practice Library
-- ChatGPT-style layout:
-  - Sidebar with roster groups (from config).
-  - Center pane: practice list (ordered by date).
-  - Right pane: live preview of selected practice.
-- Search bar for filtering practices by text/title.
-- Pagination with “Prev / Next”.
-- Uses the same preview formatting as Practice Builder.
+- Sidebar navigation by roster (ChatGPT-style UI)
+- List of saved practices ordered by date
+- Search by title or text
+- Preview panel reusing the Practice Builder formatting
 
-### Config File (`server/config/roster.config.json`)
-Centralized config for:
-- **Roster groups**
-- **Default warmups** (auto-loads when selecting a roster in Practice Builder).
-- **Practice schedule** (days/times per roster).
-- **Default roster** (used when Practice Builder first loads).
+---
 
-Example structure:
+## 🛠️ Tech Stack
+- **Frontend**: React, @dnd-kit for drag-and-drop
+- **Backend**: Node.js, Express
+- **Database**: MongoDB (Mongoose)
+- **Docs Export**: docx npm library
+- **Config**: JSON file (`server/config/roster.config.json`)
 
-```json
-{
-  "defaultRoster": "Gold/Platinum",
-  "rosters": ["Yellow", "Blue", "White", "Bronze", "Silver", "Gold/Platinum"],
-  "warmups": {
-    "Yellow": "400 swim\n4 x 100 K/S/D/S @ 2:00\n4 x 50 build @ :50",
-    "Blue": "300 swim\n..."
-  },
-  "practiceSchedule": {
-    "Gold/Platinum": {
-      "Mon": "18:30",
-      "Tue": "19:00",
-      "Wed": "18:30",
-      "Thu": "19:00",
-      "Fri": "OFF",
-      "Sat": "OFF",
-      "Sun": "06:30"
-    }
-  }
-}
+---
 
+## 📂 Project Structure
+```
+swim-team-app/
+├── server/                # Backend
+│   ├── config.js          # Load/save/watch config
+│   ├── db.js              # MongoDB connection
+│   ├── exportDocx.js      # Word export logic
+│   ├── index.js           # Express server
+│   ├── models.js          # Practice schema
+│   └── config/roster.config.json
+├── src/                   # Frontend React app
+│   ├── pages/             # Screens (PracticeBuilder, PracticeLibrary)
+│   ├── components/        # Shared UI
+│   ├── api/               # API wrappers
+│   └── utils/             # Yardage/time parsing
+└── package.json
+```
+
+---
+
+## ⚙️ Setup
+
+### 1. Clone Repo
+```bash
+git clone https://github.com/kdesrosiers/swim-team-app.git
+cd swim-team-app
+```
+
+### 2. Install Dependencies
+Frontend:
+```bash
+npm install
+```
+
+Backend (inside `/server`):
+```bash
+cd server
+npm install
+```
+
+### 3. Environment
+Create a `.env` file in `/server`:
+```
+MONGODB_URI=mongodb://localhost:27017/swimteam
+ADMIN_KEY=your_secret_key
+EXPORT_DIR=C:/Users/<YourUser>/Desktop/practices
+```
+
+### 4. Run
+Backend (from `/server`):
+```bash
+node index.js
+```
+
+Frontend (from root):
+```bash
+npm start
+```
+
+---
+
+## 📖 Usage
+1. Open `http://localhost:3000` for frontend
+2. Use the Practice Builder to create/edit practices
+3. Save to DB or export to Word
+4. Browse saved practices in the Practice Library
+
+---
+
+## ✅ Next Steps
+- User authentication
+- Meet lineup management
+- Swimmer best times tracking
+- AI-assisted set generation
+
+---
