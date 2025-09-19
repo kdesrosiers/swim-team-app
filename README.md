@@ -1,70 +1,68 @@
-# Getting Started with Create React App
+# Swim Team App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A web application for building, saving, exporting, and organizing swim team practices.  
+This project is built with **React** (frontend) and **Node.js + Express + MongoDB** (backend).  
+It is currently in active development.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## Features (Current)
 
-### `npm start`
+### Practice Builder
+- Create structured practices with sections (Warm Up, Pre-Set, Main Set, Cool Down, Breaks).
+- Drag-and-drop reordering of sections.
+- Live yardage and time calculation:
+  - Parses sets like `3x100 Free @ 1:30`.
+  - Handles nested repeat blocks (`3x { 4x50 Free @ :50 }`).
+- Start time tracking → displays rolling section end times.
+- Practice metadata:
+  - Date picker
+  - Roster group selection (from config)
+  - Pool type dropdown (**SCM, SCY, LCM**)
+- Export practices to formatted **Word documents** (`.docx`) with:
+  - Titles
+  - Totals (yardage, time)
+  - Section formatting
+  - Aligned end times
+- Save practices to MongoDB.
+- New **Save & Export** button (save to DB *and* generate `.docx` at once).
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Practice Library
+- ChatGPT-style layout:
+  - Sidebar with roster groups (from config).
+  - Center pane: practice list (ordered by date).
+  - Right pane: live preview of selected practice.
+- Search bar for filtering practices by text/title.
+- Pagination with “Prev / Next”.
+- Uses the same preview formatting as Practice Builder.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Config File (`server/config/roster.config.json`)
+Centralized config for:
+- **Roster groups**
+- **Default warmups** (auto-loads when selecting a roster in Practice Builder).
+- **Practice schedule** (days/times per roster).
+- **Default roster** (used when Practice Builder first loads).
 
-### `npm test`
+Example structure:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```json
+{
+  "defaultRoster": "Gold/Platinum",
+  "rosters": ["Yellow", "Blue", "White", "Bronze", "Silver", "Gold/Platinum"],
+  "warmups": {
+    "Yellow": "400 swim\n4 x 100 K/S/D/S @ 2:00\n4 x 50 build @ :50",
+    "Blue": "300 swim\n..."
+  },
+  "practiceSchedule": {
+    "Gold/Platinum": {
+      "Mon": "18:30",
+      "Tue": "19:00",
+      "Wed": "18:30",
+      "Thu": "19:00",
+      "Fri": "OFF",
+      "Sat": "OFF",
+      "Sun": "06:30"
+    }
+  }
+}
 
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)

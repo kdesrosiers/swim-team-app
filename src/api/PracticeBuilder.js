@@ -1,55 +1,77 @@
-// at top
-import { createPractice, listPractices } from "../api/practices";
+// src/api/PracticeBuilder.js
 
-// somewhere in your component
-async function handleSavePractice() {
-  try {
-    // adapt these to your state/variables:
-    const title = practiceTitle || "Untitled Practice";
-    const date = new Date().toISOString().slice(0, 10);  // "YYYY-MM-DD"
-    const pool = unit || "SCM"; // "SCY" | "SCM" | "LCM"
+import { createPractice, listPractices } from "./practices";
 
-    // If you already compute yardage/time totals, reuse them:
-    const totals = { yardage: totalYardage ?? 0, timeSeconds: totalTimeSeconds ?? 0 };
-
-    const SectionSchema = new mongoose.Schema({
-      type: { type: String },       // remove enum
-      title: { type: String },      // still required if you want
-      text: { type: String, default: "" }, // not required anymore
-      yardage: { type: Number, default: 0 },
-      timeSeconds: { type: Number, default: 0 }
-    }, { _id: false });
-
-
-
-    // If your section state is already what the API expects, pass it directly.
-    // Otherwise map to { type, title, text, yardage, timeSeconds }
-    const sectionsForApi = sections.map(s => ({
-      type: s.type || "Main Set",
-      title: s.title || s.type || "Section",
-      text: s.text ?? s.content ?? "",
-      yardage: s.yardage ?? 0,
-      timeSeconds: s.timeSeconds ?? 0,
-    }));
-
-    const saved = await createPractice({
-      title,
-      date,
-      pool,
-      sections: sectionsForApi,
-      totals,
-    });
-
-    console.log("Saved practice:", saved);
-    // optional: show a toast, clear dirty state, etc.
-  } catch (err) {
-    console.error("Save failed:", err);
-    alert("Save failed. Check console for details.");
-  }
+/**
+ * Map builder UI sections -> API shape
+ * Expects:
+ *   sections: [{ id, name, type: 'swim'|'break', content }]
+ *   sectionYardages: number[]   // same order as sections
+ *   sectionTimes: number[]      // same order as sections
+ */
+export function mapSectionsForApi(sections = [], sectionYardages = [], sectionTimes = []) {
+  return sections.map((s, i) => ({
+    // For swim sections, use the section name as both type/title.
+    // For breaks, type becomes "Break" and title is "Break" (or name if provided).
+    type: s.type === "break" ? "Break" : (s.name || "Section"),
+    title: s.type === "break" ? (s.name || "Break") : (s.name || "Section"),
+    text: s.content || "",
+    yardage: Number.isFinite(sectionYardages[i]) ? sectionYardages[i] : 0,
+    timeSeconds: Number.isFinite(sectionTimes[i]) ? sectionTimes[i] : 0,
+  }));
 }
 
-// (Optional) Load recent practices somewhere (e.g., on mount or a button)
-async function fetchPractices() {
-  const items = await listPractices();
-  console.log("Practices:", items);
+/**
+ * Save a practice from the builder state.
+ * Call this from your PracticeBuilder page:
+ *   await handleSavePractice({
+ *     practiceTitle, practiceDate, pool, selectedRoster,
+ *     sections, sectionYardages, sectionTimes,
+ *     totalYardage, totalTimeSec,
+ *   })
+ */
+export async function handleSavePractice({
+  practiceTitle,
+  practiceDate,           // "YYYY-MM-DD"
+  pool = "SCM",           // "SCM" | "SCY" | "LCM"
+  selectedRoster = "",
+  sections = [],
+  sectionYardages = [],
+  sectionTimes = [],
+  totalYardage = 0,
+  totalTimeSec = 0,
+  userId = "kyle",        // optional; your server also defaults this
+}) {
+  const title = practiceTitle?.trim() || `Practice ${practiceDate || ""}`.trim();
+
+  const sectionsForApi = mapSectionsForApi(sections, sectionYardages, sectionTimes);
+
+  const totals = {
+    yardage: Number.isFinite(totalYardage) ? totalYardage : 0,
+    timeSeconds: Number.isFinite(totalTimeSec) ? totalTimeSec : 0,
+  };
+
+  // createPractice handles POST /api/practices; headers (x-user-id / admin key)
+  // should be set in your shared client or per-request as needed.
+  const saved = await createPractice(
+    {
+      title,
+      date: practiceDate,
+      pool,
+      roster: selectedRoster,
+      sections: sectionsForApi,
+      totals,
+    },
+    // optional per-request headers if your client doesn't inject them globally:
+    // { "x-user-id": userId }
+  );
+
+  return saved;
+}
+
+/**
+ * Convenience passthrough to list practices (used elsewhere if needed)
+ */
+export async function fetchPractices(params = {}) {
+  return listPractices(params);
 }

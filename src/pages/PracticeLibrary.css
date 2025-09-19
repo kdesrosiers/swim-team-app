@@ -1,0 +1,72 @@
+.library-page {
+  display: flex;
+  height: 100vh;
+  background-color: #f9f9f9;
+}
+
+/* Sidebar */
+.library-sidebar {
+  width: 240px;
+  background-color: #202123; /* dark like ChatGPT */
+  color: white;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.library-sidebar h2 {
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+}
+
+.roster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.roster-item {
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.roster-item:hover {
+  background: #2a2b32;
+}
+
+.roster-item.active {
+  background: #343541;
+  font-weight: bold;
+}
+
+/* Main content */
+.library-main {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.practice-list {
+  margin-bottom: 20px;
+}
+
+.practice-card {
+  background: white;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+.practice-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.practice-preview {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+}

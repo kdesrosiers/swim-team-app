@@ -1,63 +1,46 @@
 // server/models.js
 import mongoose from "mongoose";
 
-/**
- * Looser section schema:
- * - no enum on `type`
- * - `title` and `text` are optional (default to "")
- * - safe defaults for yardage/timeSeconds
- */
+/** A single section in a practice (swim or break) */
 const SectionSchema = new mongoose.Schema(
   {
-    type: { type: String, default: "" },       // e.g., "Warm Up", "Break", "Main Set"
-    title: { type: String, default: "" },      // display label
-    text: { type: String, default: "" },       // raw textarea content
-    yardage: { type: Number, default: 0 },
-    timeSeconds: { type: Number, default: 0 },
+    // For non-breaks, we store the section header in both `type` and `title`
+    // (historical compatibility with earlier saves)
+    type: { type: String },         // e.g., "Warm Up" | "Main Set" | "Break"
+    title: { type: String },        // display title (same as type for swim sections)
+    text: { type: String },         // multi-line body
+    yardage: { type: Number },      // computed yardage for that section
+    timeSeconds: { type: Number },  // computed duration in seconds
   },
   { _id: false }
 );
 
-/**
- * Practice: relaxed validation so the UI can send whatever it has.
- * - `title` optional (default "Untitled Practice")
- * - `date` stored as string YYYY-MM-DD (optional)
- * - `pool` any string (default "SCY")
- * - `sections` accepts loose SectionSchema
- */
-const PracticeSchema = new mongoose.Schema({
-  userId: { type: String, index: true, default: "kyle" },
-  title: { type: String, default: "Untitled Practice" },
-  date: { type: String, default: "" },               // YYYY-MM-DD
-  pool: { type: String, default: "SCY" },            // "SCY" | "SCM" | "LCM" or anything for now
-  sections: { type: [SectionSchema], default: [] },
-  totals: {
-    yardage: { type: Number, default: 0 },
-    timeSeconds: { type: Number, default: 0 },
+/** A saved practice */
+const PracticeSchema = new mongoose.Schema(
+  {
+    userId: { type: String, index: true },         // "kyle" (from x-user-id header)
+    date:   { type: String, required: true },      // "YYYY-MM-DD" from date picker
+    roster: { type: String, index: true },         // e.g., "Yellow"
+    pool:   { type: String },                      // e.g., "SCY" | "SCM" (optional)
+    title:  { type: String },                      // e.g., "Practice 09/07/2025 — Yellow"
+
+    sections: [SectionSchema],
+    totals: {
+      yardage: { type: Number, default: 0 },
+      timeSeconds: { type: Number, default: 0 },
+    },
+
+    createdAt: { type: Date, default: Date.now },
   },
-  createdAt: { type: Date, default: Date.now },
-  roster: { type: String, default: "" },
+  { versionKey: false }
+);
 
-});
+// ---- Indexes ----
+// Keep either inline `index: true` on fields above OR these schema.index() calls,
+// but don't duplicate both in different files.
 
-/**
- * Swimmer: keep everything optional/loose while you build UI.
- */
-const SwimmerSchema = new mongoose.Schema({
-  userId: { type: String, index: true, default: "kyle" },
-  firstName: { type: String, default: "" },
-  lastName: { type: String, index: true, default: "" },
-  dob: { type: String, default: "" },               // YYYY-MM-DD (string for simplicity)
-  groups: { type: [String], default: [] },
-  bestTimes: { type: mongoose.Schema.Types.Mixed, default: {} },
-  notes: { type: String, default: "" },
-  createdAt: { type: Date, default: Date.now },
-});
+PracticeSchema.index({ date: 1, roster: 1 });  // for library filtering/sorting
+// userId already has inline index: true above
 
-/** Helpful indexes (safe to re-run) */
-PracticeSchema.index({ createdAt: -1 });
-PracticeSchema.index({ userId: 1 });
-SwimmerSchema.index({ userId: 1, lastName: 1, firstName: 1 });
-
+// Export as a named export `Practice`
 export const Practice = mongoose.model("Practice", PracticeSchema);
-export const Swimmer = mongoose.model("Swimmer", SwimmerSchema);

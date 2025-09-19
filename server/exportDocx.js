@@ -17,6 +17,9 @@ const TWIP = {
   indent: 720, // 0.5"
 };
 
+// ✅ Default absolute export directory (Windows)
+const DEFAULT_EXPORT_DIR = "C:/Users/kdesr/Desktop/practices";
+
 // ----------------- Helpers -----------------
 function p(text = "", opts = {}) {
   return new Paragraph({
@@ -161,7 +164,6 @@ export async function exportPracticeToDocx(practice, outDir) {
 
   docChildren.push(headerLine(totalLeft, totalRight, rightTab));
 
-
   // Build document
   const doc = new Document({
     sections: [
@@ -177,16 +179,15 @@ export async function exportPracticeToDocx(practice, outDir) {
     ],
   });
 
+  // ✅ Always write to Desktop/practices unless an explicit outDir is passed
+  const exportDir = outDir || DEFAULT_EXPORT_DIR;
+
   // Ensure output dir exists
-  await fs.mkdir(outDir, { recursive: true });
+  await fs.mkdir(exportDir, { recursive: true });
 
-  // Filename: use picker date if valid; otherwise fallback to today (UTC-safe slice)
-  const yyyymmdd = (date && /^\d{4}-\d{2}-\d{2}$/.test(date))
-    ? date.replace(/-/g, "")
-    : new Date().toISOString().slice(0, 10).replace(/-/g, "");
-
-  const safeTitle = sanitize(title).slice(0, 120) || "Practice";
-  const filePath = path.join(outDir, `${safeTitle}.docx`);
+  // Filename (sanitized)
+  const safeTitle = (sanitize(title).trim() || "Practice").slice(0, 120);
+  const filePath = path.join(exportDir, `${safeTitle}.docx`);
 
   const buffer = await Packer.toBuffer(doc);
   await fs.writeFile(filePath, buffer);

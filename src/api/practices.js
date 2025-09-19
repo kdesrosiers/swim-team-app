@@ -4,9 +4,12 @@ export function exportPracticeDocx(payload) {
   return post("/api/export/docx", payload);
 }
 
-export function listPractices(q = "") {
-  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
-  return get(`/api/practices${qs}`);
+export function listPractices(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return get(`/api/practices${qs ? `?${qs}` : ""}`);
+}
+export function getPractice(id) {
+  return get(`/api/practices/${id}`);
 }
 
 export function createPractice(practice) {

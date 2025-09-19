@@ -2,9 +2,11 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { connectMongo } from "./db.js";
-import { Practice } from "./models.js";
+// ⬇️ Alias the export so the name matches what you use below
+import { Practice as PracticeModel } from "./models.js";
 import path from "node:path";
 import { exportPracticeToDocx } from "./exportDocx.js";
+import { loadConfig, getConfig, saveConfig, watchConfig } from "./config.js";
 
 dotenv.config();
 const app = express();
@@ -23,30 +25,71 @@ app.use((req, res, next) => {
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-
 await connectMongo();
+await loadConfig();
+watchConfig();
 
-// List practices (optionally filter by user)
+// LIST practices by roster/date with paging & optional text search
 app.get("/api/practices", async (req, res) => {
-  const userId = req.header("x-user-id") || "kyle";
-  const { q } = req.query;
-  const filter = { userId };
-  if (q) filter.$text = { $search: q };
-  const items = await Practice.find(filter).sort({ createdAt: -1 }).limit(100);
-  res.json(items);
+  try {
+    const { roster = "", q = "", page = 1, limit = 20 } = req.query;
+    const where = { userId: "kyle" };
+    if (roster) where.roster = roster;
+    if (q) {
+      where.$or = [
+        { title: { $regex: q, $options: "i" } },
+        { "sections.text": { $regex: q, $options: "i" } },
+      ];
+    }
+
+    const p = Math.max(1, parseInt(page, 10) || 1);
+    const lim = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+
+    const [items, total] = await Promise.all([
+      PracticeModel.find(where)
+        .sort({ date: -1 }) // newest first
+        .skip((p - 1) * lim)
+        .limit(lim)
+        .lean(),
+      PracticeModel.countDocuments(where),
+    ]);
+
+    res.json({ items, total, page: p, limit: lim });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to list practices" });
+  }
 });
 
-// Create a practice
+// READ one
+app.get("/api/practices/:id", async (req, res) => {
+  try {
+    const doc = await PracticeModel.findOne({ _id: req.params.id, userId: "kyle" });
+    if (!doc) return res.status(404).json({ error: "Not found" });
+    res.json(doc);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to fetch practice" });
+  }
+});
+
+// CREATE
 app.post("/api/practices", async (req, res) => {
-  const userId = req.header("x-user-id") || "kyle";
-  const created = await Practice.create({ ...req.body, userId });
-  res.status(201).json(created);
+  try {
+    const userId = req.header("x-user-id") || "kyle";
+    const created = await PracticeModel.create({ ...req.body, userId });
+    res.status(201).json(created);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to create practice" });
+  }
 });
 
+// EXPORT DOCX
 app.post("/api/export/docx", async (req, res) => {
   try {
     const outDir = process.env.EXPORT_DIR || path.join(process.cwd(), "exports");
-    // Expect same shape we save: { title, date, pool, roster, sections: [{title,type,text,yardage,timeSeconds}], totals }
+    // Expect: { title, date, pool, roster, startTime, sections:[{title,type,text,yardage,timeSeconds}], totals }
     const filePath = await exportPracticeToDocx(req.body, outDir);
     res.json({ ok: true, filePath });
   } catch (e) {
@@ -55,6 +98,17 @@ app.post("/api/export/docx", async (req, res) => {
   }
 });
 
+// CONFIG
+app.get("/api/config", (req, res) => res.json(getConfig() || {}));
+app.put("/api/config", async (req, res) => {
+  try {
+    const updated = await saveConfig(req.body || {});
+    res.json(updated);
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ error: "Failed to save config", detail: String(e?.message || e) });
+  }
+});
+
 const PORT = process.env.PORT ?? 5174;
 app.listen(PORT, () => console.log(`API listening on http://localhost:${PORT}`));
-

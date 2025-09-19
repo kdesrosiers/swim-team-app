@@ -22,11 +22,12 @@ export default function Layout() {
             Practice Builder
           </NavLink>
           <NavLink
-            to="/library"
+            to="/practices"
             className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
           >
-            Sets Library
-          </NavLink>
+            Practice Library
+          </NavLink
+          >
         </nav>
       </header>
 
