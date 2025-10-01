@@ -11,6 +11,13 @@ import {
   TabStopType,
   TextRun
 } from "docx";
+import {
+  formatSeconds,
+  ceilToMinute,
+  secondsFromHHMM as parseStartSeconds,
+  formatClock12,
+  formatNumber,
+} from "./utils/timeHelpers.js";
 
 const TWIP = {
   inch: 1440,
@@ -42,44 +49,6 @@ function headerLine(leftText, rightText, rightTabPos) {
       new TextRun({ text: rightText, bold: true }),
     ],
   });
-}
-
-function formatNumber(n) {
-  return Number(n || 0).toLocaleString("en-US");
-}
-
-function formatSeconds(totalSec = 0) {
-  const s = Math.max(0, Math.floor(totalSec));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  return `${m}:${String(sec).padStart(2, "0")}`;
-}
-
-function ceilToMinute(sec) {
-  return Math.ceil((sec || 0) / 60) * 60;
-}
-
-function parseStartSeconds(hhmm = "06:00") {
-  const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(String(hhmm).trim());
-  if (!m) return 0;
-  const h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
-  const min = Math.min(59, Math.max(0, parseInt(m[2], 10)));
-  const s = m[3] ? Math.min(59, Math.max(0, parseInt(m[3], 10))) : 0;
-  return h * 3600 + min * 60 + s;
-}
-
-function formatClock12(totalSecFromMidnight, showSeconds = false) {
-  let s = ((totalSecFromMidnight % 86400) + 86400) % 86400; // wrap within 24h
-  const h24 = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  const ampm = h24 >= 12 ? "PM" : "AM";
-  const h12 = ((h24 + 11) % 12) + 1; // 0→12, 13→1, etc.
-  const mm = String(m).padStart(2, "0");
-  const ss = String(sec).padStart(2, "0");
-  return showSeconds ? `${h12}:${mm}:${ss} ${ampm}` : `${h12}:${mm} ${ampm}`;
 }
 // -------------------------------------------
 

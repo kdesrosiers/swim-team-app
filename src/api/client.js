@@ -12,14 +12,20 @@ const ADMIN_KEY =
   process.env.REACT_APP_ADMIN_KEY ||
   ""; // leave empty -> 401 if server requires it
 
+const DEV_USER_ID =
+  (viteEnv && viteEnv.VITE_DEV_USER_ID) ||
+  process.env.REACT_APP_DEV_USER_ID ||
+  ""; // empty = server will use its default
+
 console.log("API_BASE =", API_BASE);
 console.log("ADMIN_KEY present =", !!ADMIN_KEY);
+console.log("DEV_USER_ID =", DEV_USER_ID || "(using server default)");
 
 
 export function authHeaders(extra = {}) {
   return {
     "Content-Type": "application/json",
-    "x-user-id": "kyle", // dev only
+    ...(DEV_USER_ID ? { "x-user-id": DEV_USER_ID } : {}),
     ...(ADMIN_KEY ? { "x-admin-key": ADMIN_KEY } : {}),
     ...extra,
   };

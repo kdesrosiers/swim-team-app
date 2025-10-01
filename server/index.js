@@ -33,7 +33,8 @@ watchConfig();
 app.get("/api/practices", async (req, res) => {
   try {
     const { roster = "", q = "", page = 1, limit = 20 } = req.query;
-    const where = { userId: "kyle" };
+    const userId = req.header("x-user-id") || process.env.DEV_USER_ID || "default-user";
+    const where = { userId };
     if (roster) where.roster = roster;
     if (q) {
       where.$or = [
@@ -64,7 +65,8 @@ app.get("/api/practices", async (req, res) => {
 // READ one
 app.get("/api/practices/:id", async (req, res) => {
   try {
-    const doc = await PracticeModel.findOne({ _id: req.params.id, userId: "kyle" });
+    const userId = req.header("x-user-id") || process.env.DEV_USER_ID || "default-user";
+    const doc = await PracticeModel.findOne({ _id: req.params.id, userId });
     if (!doc) return res.status(404).json({ error: "Not found" });
     res.json(doc);
   } catch (e) {
@@ -76,11 +78,16 @@ app.get("/api/practices/:id", async (req, res) => {
 // CREATE
 app.post("/api/practices", async (req, res) => {
   try {
-    const userId = req.header("x-user-id") || "kyle";
+    const userId = req.header("x-user-id") || process.env.DEV_USER_ID || "default-user";
     const created = await PracticeModel.create({ ...req.body, userId });
     res.status(201).json(created);
   } catch (e) {
     console.error(e);
+    // Handle Mongoose validation errors
+    if (e.name === "ValidationError") {
+      const errors = Object.values(e.errors).map(err => err.message);
+      return res.status(400).json({ error: "Validation failed", details: errors });
+    }
     res.status(500).json({ error: "Failed to create practice" });
   }
 });

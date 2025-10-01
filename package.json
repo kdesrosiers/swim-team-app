@@ -16,6 +16,7 @@
     "mongoose": "^8.18.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.8.2",
     "react-scripts": "5.0.1",
     "sanitize-filename": "^1.6.3",
@@ -25,7 +26,11 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "server": "nodemon server/index.js",
+    "server:prod": "node server/index.js",
+    "dev": "concurrently \"npm start\" \"npm run server\" --names \"client,server\" --prefix-colors \"cyan,yellow\"",
+    "dev:server": "npm run server"
   },
   "eslintConfig": {
     "extends": [
@@ -44,5 +49,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.10"
   }
 }

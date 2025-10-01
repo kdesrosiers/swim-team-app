@@ -1,11 +1,19 @@
 // src/pages/PracticeBuilder.js
 import React, { useState, useMemo, useEffect } from "react";
+import toast from "react-hot-toast";
 import "./PracticeBuilder.css";
 import { parseYardage } from "../utils/yardageParser";
 import { exportPracticeDocx } from "../api/practices";
 import { getConfig } from "../api/config";
 import { handleSavePractice } from "../api/PracticeBuilder";
-
+import {
+  computeSectionTimeSeconds,
+  formatSeconds,
+  ceilToMinute,
+  secondsFromHHMM,
+  formatClock12,
+  formatYardage,
+} from "../utils/timeHelpers";
 
 import {
   DndContext,
@@ -23,130 +31,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-/* ---------- Helpers ---------- */
-// Formats numbers with commas (1000 -> "1,000")
-const formatYardage = (n) =>
-  Number.isFinite(n) ? n.toLocaleString("en-US") : "";
-
-// Parse ":40", "1:30", "1:05:30", or plain "90" into seconds
-function parseTimeToSeconds(str) {
-  if (!str) return null;
-  const s = String(str).trim();
-
-  if (s.startsWith(":")) {
-    const sec = parseInt(s.slice(1), 10);
-    return Number.isFinite(sec) ? sec : null;
-  }
-  if (s.includes(":")) {
-    const parts = s.split(":").map((t) => t.trim());
-    if (parts.length === 2) {
-      const m = parseInt(parts[0], 10);
-      const sec = parseInt(parts[1], 10);
-      return Number.isFinite(m) && Number.isFinite(sec) ? m * 60 + sec : null;
-    }
-    if (parts.length === 3) {
-      const h = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10);
-      const sec = parseInt(parts[2], 10);
-      return Number.isFinite(h) && Number.isFinite(m) && Number.isFinite(sec)
-        ? h * 3600 + m * 60 + sec
-        : null;
-    }
-  }
-  if (/^\d+$/.test(s)) {
-    const sec = parseInt(s, 10);
-    return Number.isFinite(sec) ? sec : null;
-  }
-  return null;
-}
-
-// Grab the first @ interval on a line (handles ":40/:45" by taking the first)
-function extractFirstIntervalSeconds(line) {
-  const atIdx = line.indexOf("@");
-  if (atIdx === -1) return null;
-  let after = line.slice(atIdx + 1).trim();
-  after = after.split("/")[0].trim(); // if ":40/:45" -> take ":40"
-  const token = after.split(/\s+/)[0]; // stop at first whitespace
-  return parseTimeToSeconds(token);
-}
-
-// Expand innermost "N x { ... }" blocks by repetition so we can sum
-function expandBlocks(text) {
-  let out = text;
-  const pattern = /(\d+)\s*[xX]\s*{([^{}]*)}/s; // innermost only
-  while (pattern.test(out)) {
-    out = out.replace(pattern, (_, n, inner) => {
-      const times = parseInt(n, 10);
-      if (!Number.isFinite(times) || times <= 0) return inner;
-      const block = inner.trim();
-      return Array(times).fill(block).join("\n");
-    });
-  }
-  return out;
-}
-
-// Compute total seconds for a section (swim or break)
-function computeSectionTimeSeconds(section) {
-  if (section.type === "break") {
-    return parseTimeToSeconds(section.content) || 0;
-  }
-  if (!section.content) return 0;
-
-  const expanded = expandBlocks(section.content);
-  let total = 0;
-
-  for (let raw of expanded.split("\n")) {
-    const line = raw.trim();
-    if (!line) continue;
-    if (/^break/i.test(line)) continue;
-
-    const perRep = extractFirstIntervalSeconds(line);
-    if (perRep == null) continue;
-
-    let reps = 1;
-    const repsMatch = line.match(/^(\d+)\s*[xX]\b/);
-    if (repsMatch) reps = parseInt(repsMatch[1], 10);
-
-    total += reps * perRep;
-  }
-
-  return total;
-}
-
-function formatSeconds(totalSec) {
-  const s = Math.max(0, Math.floor(totalSec));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  return `${m}:${String(sec).padStart(2, "0")}`;
-}
-
-// rounding helper for preview/export end clocks
-function ceilToMinute(sec = 0) {
-  const s = Math.max(0, Math.floor(sec));
-  return s % 60 === 0 ? s : Math.ceil(s / 60) * 60;
-}
-function secondsFromHHMM(hhmm = "06:00") {
-  const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(String(hhmm).trim());
-  if (!m) return 0;
-  const h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
-  const min = Math.min(59, Math.max(0, parseInt(m[2], 10)));
-  const s = m[3] ? Math.min(59, Math.max(0, parseInt(m[3], 10))) : 0;
-  return h * 3600 + min * 60 + s;
-}
-function formatClock12(totalSecFromMidnight, showSeconds = false) {
-  let s = ((totalSecFromMidnight % 86400) + 86400) % 86400;
-  const h24 = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  const ampm = h24 >= 12 ? "PM" : "AM";
-  const h12 = ((h24 + 11) % 12) + 1;
-  const mm = String(m).padStart(2, "0");
-  const ss = String(sec).padStart(2, "0");
-  return showSeconds ? `${h12}:${mm}:${ss} ${ampm}` : `${h12}:${mm} ${ampm}`;
-}
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function nextStartFor(config, roster, yyyyMmDd) {
@@ -312,16 +196,6 @@ function PracticeBuilder() {
       const date = practiceDate;
       const poolValue = pool;
 
-      const sectionsForApi = sections.map((s, i) => ({
-        type: s.type === "break" ? "Break" : s.type,
-        title: s.name || (s.type === "break" ? "Break" : "Section"),
-        text: s.content || "",
-        yardage: sectionYardages[i] ?? 0,
-        timeSeconds: sectionTimes[i] ?? 0,
-      }));
-
-      const totals = { yardage: totalYardage, timeSeconds: totalTimeSec };
-
       // ⬇️ Call the helper with the parameter names it expects.
       // (It maps sections itself, so pass raw sections + computed arrays.)
       await handleSavePractice({
@@ -337,10 +211,10 @@ function PracticeBuilder() {
         // startTime is not persisted in the practice model, so we omit it here
       });
 
-      alert("✅ Practice saved!");
+      toast.success("Practice saved successfully!");
     } catch (e) {
       console.error(e);
-      alert("❌ Save failed. Check console.");
+      toast.error(e.message || "Failed to save practice. Check console for details.");
     }
   }
 
@@ -373,11 +247,14 @@ function PracticeBuilder() {
 
       const out = await exportPracticeDocx(payload);
       // server returns { filePath } — show it
-      const msg = out?.filePath ? `✅ Exported to:\n${out.filePath}` : "✅ Export completed.";
-      alert(msg);
+      if (out?.filePath) {
+        toast.success(`Exported to: ${out.filePath}`, { duration: 6000 });
+      } else {
+        toast.success("Export completed!");
+      }
     } catch (e) {
       console.error(e);
-      alert("❌ Export failed. Check console.");
+      toast.error(e.message || "Failed to export. Check console for details.");
     }
   }
 
@@ -423,10 +300,10 @@ function PracticeBuilder() {
         totals,
       });
 
-      alert(`✅ Saved & exported to:\n${out.filePath}`);
+      toast.success(`Saved & exported to: ${out.filePath}`, { duration: 6000 });
     } catch (e) {
       console.error(e);
-      alert("❌ Save & Export failed. Check console.");
+      toast.error(e.message || "Save & Export failed. Check console for details.");
     } finally {
       setSaving(false);
     }

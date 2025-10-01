@@ -66,3 +66,75 @@ Example structure:
   }
 }
 
+---
+
+## Development Setup
+
+### Prerequisites
+- Node.js (v16+)
+- MongoDB running locally on port 27017
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env` (root for frontend)
+   - Copy `server/.env.example` to `server/.env` (for backend)
+   - Update values as needed (especially `ADMIN_KEY` and `EXPORT_DIR`)
+
+4. Start MongoDB:
+   ```bash
+   # macOS/Linux
+   mongod
+
+   # Windows
+   # MongoDB should start as a service automatically
+   ```
+
+### Running the App
+
+**Development mode (runs both frontend + backend):**
+```bash
+npm run dev
+```
+This starts:
+- React frontend on http://localhost:3000
+- Express API on http://localhost:5174
+
+**Run servers separately:**
+```bash
+# Frontend only
+npm start
+
+# Backend only (with auto-restart)
+npm run server
+
+# Backend only (production)
+npm run server:prod
+```
+
+**Build for production:**
+```bash
+npm run build
+```
+
+---
+
+## Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm start` | Start React frontend only (port 3000) |
+| `npm run server` | Start backend with nodemon (auto-restart on changes) |
+| `npm run server:prod` | Start backend without auto-restart |
+| `npm run dev` | **Start both frontend and backend concurrently** |
+| `npm run build` | Build React app for production |
+| `npm test` | Run tests |
+
+---
+

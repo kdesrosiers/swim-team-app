@@ -1,15 +1,12 @@
 import React, { useMemo } from "react";
 import { parseYardage } from "../utils/yardageParser";
-
-// copy the helpers you already use:
-function parseTimeToSeconds(str) { /* same as in builder */ }
-function extractFirstIntervalSeconds(line) { /* same as in builder */ }
-function expandBlocks(text) { /* same as in builder */ }
-function computeSectionTimeSeconds(section) { /* same as in builder */ }
-function formatSeconds(totalSec) { /* same as in builder */ }
-function ceilToMinute(sec = 0) { const s = Math.max(0, Math.floor(sec)); return s % 60 === 0 ? s : Math.ceil(s / 60) * 60; }
-function secondsFromHHMM(hhmm = "06:00") { /* same as builder */ }
-function formatClock12(total, showSeconds = false) { /* same as builder */ }
+import {
+  computeSectionTimeSeconds,
+  formatSeconds,
+  ceilToMinute,
+  secondsFromHHMM,
+  formatClock12,
+} from "../utils/timeHelpers";
 
 export default function PracticePreview({ practice, startTime = "06:00" }) {
     const sections = practice.sections || [];
