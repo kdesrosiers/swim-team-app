@@ -5,10 +5,13 @@ import { connectMongo } from "./db.js";
 // ⬇️ Alias the export so the name matches what you use below
 import { Practice as PracticeModel } from "./models.js";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { exportPracticeToDocx } from "./exportDocx.js";
 import { loadConfig, getConfig, saveConfig, watchConfig } from "./config.js";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, ".env") });
 const app = express();
 app.use(cors());
 app.use(express.json());

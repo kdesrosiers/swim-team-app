@@ -113,7 +113,7 @@ function PracticeBuilder() {
         const rosters =
           Array.isArray(cfg?.rosters) && cfg.rosters.length
             ? cfg.rosters
-            : ["Senior", "Gold/Platinum", "Yellow", "Blue"];
+            : ["Yellow", "Blue", "White", "Bronze", "Silver", "Gold/Platinum"];
         setRosterOptions(rosters);
 
         // Choose default: config.defaultRoster -> first roster
@@ -123,15 +123,14 @@ function PracticeBuilder() {
 
         setSelectedRoster(initial);
 
-        // initial Start from today's weekday for the initial (or first) roster
-        const initialRoster = selectedRoster || rosters[0];
+        // initial Start from today's weekday for the initial roster
         const todayKey = DOW[new Date().getDay()];
-        const maybe = cfg?.practiceSchedule?.[initialRoster]?.[todayKey];
+        const maybe = cfg?.practiceSchedule?.[initial]?.[todayKey];
         if (maybe && maybe !== "OFF") setStartTime(maybe);
       } catch (e) {
         console.error("Failed to load config", e);
         // sensible defaults if config not reachable
-        const fallback = ["Senior", "Gold/Platinum", "Yellow", "Blue"];
+        const fallback = ["Yellow", "Blue", "White", "Bronze", "Silver", "Gold/Platinum"];
         setRosterOptions(fallback);
         if (!selectedRoster) setSelectedRoster(fallback[0]);
       }
@@ -348,7 +347,7 @@ function PracticeBuilder() {
                 value={selectedRoster}
                 onChange={(e) => setSelectedRoster(e.target.value)}
               >
-                {(rosterOptions.length ? rosterOptions : ["Gold/Platinum", "Bronze"]).map((r) => (
+                {rosterOptions.map((r) => (
                   <option key={r} value={r}>{r}</option>
                 ))}
               </select>

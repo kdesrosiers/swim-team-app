@@ -26,8 +26,13 @@ export default function Layout() {
             className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
           >
             Practice Library
-          </NavLink
+          </NavLink>
+          <NavLink
+            to="/config"
+            className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
           >
+            Configuration
+          </NavLink>
         </nav>
       </header>
 

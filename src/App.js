@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import Home from './pages/Home';
 import PracticeBuilder from './pages/PracticeBuilder';
 import PracticeLibrary from './pages/PracticeLibrary';
+import ConfigMaintenance from './pages/ConfigMaintenance';
 import NotFound from './pages/NotFound';
 import './App.css';
 
@@ -41,6 +42,7 @@ function App() {
             <Route index element={<Home />} />
             <Route path="builder" element={<PracticeBuilder />} />
             <Route path="practices" element={<PracticeLibrary />} />
+            <Route path="config" element={<ConfigMaintenance />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
