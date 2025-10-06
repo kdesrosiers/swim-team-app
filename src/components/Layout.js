@@ -1,8 +1,12 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
+import ThemeSettings from './ThemeSettings';
 import './Layout.css';
 
 export default function Layout() {
+  const { setIsSettingsOpen } = useTheme();
+
   return (
     <div>
       <header className="site-header">
@@ -33,12 +37,21 @@ export default function Layout() {
           >
             Configuration
           </NavLink>
+          <button
+            className="settings-btn"
+            onClick={() => setIsSettingsOpen(true)}
+            title="Theme Settings"
+          >
+            🎨
+          </button>
         </nav>
       </header>
 
       <main className="site-main">
         <Outlet />
       </main>
+
+      <ThemeSettings />
     </div>
   );
 }

@@ -1,10 +1,2 @@
-.app-container {
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: royalblue;
-  color: white;
-  font-size: 2rem;
-  font-weight: bold;
-}
+/* App-specific styles (if needed) */
+/* Global styles are in index.css */

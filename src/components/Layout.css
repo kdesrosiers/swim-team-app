@@ -1,90 +1,156 @@
-/* ===== Minimal safe base ===== */
-html, body, #root {
-  height: 100%;
-}
-* {
-  box-sizing: border-box;
-}
-
-:root {
-  --header-h: 64px;      /* adjust if your header height differs */
-  --accent: #007bff;     /* active nav pill color */
-  --text: #333;
-  --bg: #fff;
-  --border: #e5e5e5;
-}
-
-/* ===== Header (fixed) ===== */
+/* ========== Layout ========== */
 .site-header {
-  position: fixed;       /* keep it pinned */
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: var(--header-h);
+  height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 0 var(--space-xl);
+  background: white;
   border-bottom: 1px solid var(--border);
-  background: var(--bg); /* force white, avoids color bleed */
+  box-shadow: var(--shadow-sm);
   z-index: 1000;
 }
 
 .brand {
+  font-size: 1.5rem;
   font-weight: 700;
-  color: var(--text);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
 }
 
-/* ===== Nav ===== */
+/* ========== Navigation ========== */
 .nav {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;       /* allow wrap on small screens */
-  background: transparent; /* guard against global styles */
+  gap: var(--space-xs);
 }
 
 .nav-link {
-  display: inline-flex;  /* ensure pill is only as wide as content */
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-secondary);
   text-decoration: none;
-  padding: 8px 10px;
-  border-radius: 6px;
-  color: var(--text);
-  background: transparent;             /* no full-width blue bar */
-  border: 1px solid transparent;
-  transition: background .15s ease, color .15s ease, border-color .15s ease;
+  border-radius: var(--radius-md);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: transparent;
 }
 
 .nav-link:hover {
-  background: #f5f5f5;
+  color: var(--primary);
+  background: var(--gray-50);
 }
 
 .nav-link.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+  color: white;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  box-shadow: var(--shadow-md);
 }
 
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30%;
+  height: 2px;
+  background: white;
+  opacity: 0.5;
+}
+
+/* ========== Main Content Area ========== */
 .site-main {
-  display: block;
-  padding-top: var(--header-h);   /* was calc(var(--header-h) + 8px) */
-  padding-bottom: 64px;           /* keep your bottom padding if you like */
-  background: #fff;
+  padding-top: var(--header-height);
+  min-height: 100vh;
+  background: var(--gray-50);
 }
 
-
-/* Optional: keep internal boxes from picking up weird background */
-.site-main > * {
+/* ========== Settings Button ========== */
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 1.25rem;
   background: transparent;
-  padding-bottom: 32px;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left: var(--space-sm);
 }
 
-/* ===== Small screens ===== */
-@media (max-width: 600px) {
-  :root { --header-h: 72px; } /* if your header grows on mobile */
+.settings-btn:hover {
+  background: var(--gray-100);
+  transform: scale(1.1);
+}
+
+.settings-btn:active {
+  transform: scale(0.95);
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+  .site-header {
+    padding: 0 var(--space-md);
+  }
+
+  .brand {
+    font-size: 1.25rem;
+  }
+
+  .nav {
+    gap: var(--space-xs);
+  }
+
+  .nav-link {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.875rem;
+  }
+
+  .settings-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 1.125rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .site-header {
+    flex-wrap: wrap;
+    height: auto;
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .brand {
+    width: 100%;
+    margin-bottom: var(--space-sm);
+  }
+
+  .nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .nav-link {
+    flex: 1;
+    justify-content: center;
+  }
+
   .site-main {
-    padding-top: 0;
+    padding-top: calc(var(--header-height) + 20px);
   }
 }
