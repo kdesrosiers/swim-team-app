@@ -1,4 +1,4 @@
-/* ========== Config Maintenance Page ========== */
+/* ========== Config Maintenance Page & Seasons Page ========== */
 .config-page {
   min-height: calc(100vh - var(--header-height));
   background: var(--gray-50);
@@ -22,6 +22,30 @@
   margin-bottom: var(--space-2xl);
   padding-bottom: var(--space-lg);
   border-bottom: 2px solid var(--border);
+}
+
+.config-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.back-btn {
+  background: transparent;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.back-btn:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-400);
+  transform: translateX(-2px);
 }
 
 .config-header h1 {
@@ -279,6 +303,163 @@
 
 @media (max-width: 480px) {
   .schedule-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========== Seasons Page Specific Styles ========== */
+.seasons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-xl);
+  margin-top: var(--space-lg);
+}
+
+.season-card {
+  background: var(--gray-50);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.season-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-md);
+}
+
+.season-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px solid var(--border);
+}
+
+.season-card-header h3 {
+  font-size: 1.125rem;
+  color: var(--gray-900);
+  margin: 0;
+}
+
+.form-group {
+  margin-bottom: var(--space-md);
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: var(--space-xs);
+  font-size: 0.875rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  transition: border-color 0.2s;
+  background: white;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.season-summary {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+  color: var(--gray-600);
+  font-size: 0.8125rem;
+}
+
+.btn-primary {
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--primary);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  background: var(--primary-dark);
+}
+
+.btn-success {
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-success:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-success:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-danger-small {
+  background: transparent;
+  border: none;
+  font-size: 1.125rem;
+  cursor: pointer;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.btn-danger-small:hover {
+  background: #fee2e2;
+  transform: scale(1.1);
+}
+
+.empty-state {
+  padding: var(--space-2xl);
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--gray-50);
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border);
+}
+
+.empty-state p {
+  margin-bottom: var(--space-lg);
+  font-size: 1rem;
+}
+
+.config-content {
+  margin-top: var(--space-lg);
+}
+
+@media (max-width: 768px) {
+  .seasons-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -12,14 +12,20 @@ export default function PracticePreview({ practice, startTime = "06:00" }) {
     const sections = practice.sections || [];
 
     const sectionYardages = useMemo(
-        () => sections.map(s => s.type === "swim" ? parseYardage(s.text || s.content || "") : 0),
+        () => sections.map(s => {
+            const type = (s.type || "").toLowerCase();
+            return type !== "break" ? parseYardage(s.text || s.content || "") : 0;
+        }),
         [sections]
     );
     const sectionTimes = useMemo(
-        () => sections.map(s => computeSectionTimeSeconds({
-            type: s.type || "swim",
-            content: s.text ?? s.content ?? ""
-        })), [sections]
+        () => sections.map(s => {
+            const type = (s.type || "swim").toLowerCase();
+            return computeSectionTimeSeconds({
+                type: type === "break" ? "break" : "swim",
+                content: s.text ?? s.content ?? ""
+            });
+        }), [sections]
     );
     const totalYardage = sectionYardages.reduce((a, b) => a + b, 0);
     const totalTimeSec = sectionTimes.reduce((a, b) => a + b, 0);
@@ -37,8 +43,9 @@ export default function PracticePreview({ practice, startTime = "06:00" }) {
 
     return (
         <div className="preview-panel">
-            {sections.map((s, i) => (
-                s.type === "break" ? (
+            {sections.map((s, i) => {
+                const type = (s.type || "").toLowerCase();
+                return type === "break" ? (
                     <div key={s._id || i} className="preview-break">
                         {(s.title || s.name || "Break")}{(s.text || s.content) ? ` @ ${(s.text || s.content)}` : ""}
                     </div>
@@ -61,8 +68,8 @@ export default function PracticePreview({ practice, startTime = "06:00" }) {
                             </div>
                         ))}
                     </div>
-                )
-            ))}
+                );
+            })}
 
             <div className="preview-total-row">
                 <div className="preview-total-left">

@@ -35,11 +35,13 @@ export async function handleSavePractice({
   practiceDate,           // "YYYY-MM-DD"
   pool = "SCM",           // "SCM" | "SCY" | "LCM"
   selectedRoster = "",
+  season = null,          // Season title (optional)
   sections = [],
   sectionYardages = [],
   sectionTimes = [],
   totalYardage = 0,
   totalTimeSec = 0,
+  stats = null,           // Stats object { strokes: {}, styles: {} }
   userId = "kyle",        // optional; your server also defaults this
 }) {
   const title = practiceTitle?.trim() || `Practice ${practiceDate || ""}`.trim();
@@ -59,8 +61,10 @@ export async function handleSavePractice({
       date: practiceDate,
       pool,
       roster: selectedRoster,
+      season: season || undefined, // Only include if season is provided
       sections: sectionsForApi,
       totals,
+      stats: stats || undefined, // Include stats if provided
     },
     // optional per-request headers if your client doesn't inject them globally:
     // { "x-user-id": userId }

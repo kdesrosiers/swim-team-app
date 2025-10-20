@@ -1,55 +1,24 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { listPractices } from "../api/practices";
 import { getConfig } from "../api/config";
+import { getSeasons } from "../api/seasons";
 import PracticePreview from "../components/PracticePreview";
-import "./PracticeBuilder.css"; // reuse button/input styles
+import "./PracticeLibrary.css";
 
 const FALLBACK_ROSTERS = ["Gold/Platinum", "Gold", "Platinum", "Silver", "Bronze", "White", "Blue", "Yellow"];
 
-/** Inline styles to avoid a new CSS file */
-const styles = {
-  page: { display: "flex", height: "100vh", background: "#f8fafc" },
-  sidebar: {
-    width: 240, background: "#202123", color: "#fff",
-    display: "flex", flexDirection: "column", padding: "14px 12px",
-    overflowY: "auto", borderRight: "1px solid #111318",
-  },
-  sbTitle: { fontSize: 14, fontWeight: 700, margin: "6px 6px 10px" },
-  rosterList: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 },
-  rosterBtn: (active) => ({
-    width: "100%", textAlign: "left",
-    background: active ? "#343541" : "transparent",
-    color: "#e5e7eb",
-    border: "1px solid " + (active ? "#3f4045" : "#2a2b32"),
-    padding: "10px 12px", borderRadius: 8, cursor: "pointer",
-  }),
-
-  main: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0 },
-  headerBar: {
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "14px 18px", borderBottom: "1px solid #e5e7eb", background: "#fff",
-  },
-  headerLeft: { display: "flex", alignItems: "center", gap: 10, fontWeight: 700 },
-  headerRight: { display: "flex", alignItems: "center", gap: 12 },
-
-  content: { flex: 1, display: "grid", gridTemplateRows: "auto 1fr auto auto", rowGap: 12, padding: 16, overflowY: "auto" },
-  list: { display: "grid", gridTemplateColumns: "1fr", gap: 10 },
-  card: (active) => ({
-    background: "#fff", borderRadius: 10, padding: "12px 14px",
-    border: "1px solid " + (active ? "#94a3b8" : "#e5e7eb"),
-    boxShadow: active ? "0 1px 6px rgba(15,23,42,0.08)" : "none",
-    cursor: "pointer",
-  }),
-  cardMetaRow: { display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: 12, marginTop: 4 },
-  pager: { display: "flex", alignItems: "center", gap: 8, marginTop: 2 },
-  preview: { background: "#fff", borderRadius: 10, padding: 16, border: "1px solid #e5e7eb" },
-};
-
 export default function PracticeLibrary() {
+  const navigate = useNavigate();
+
   // Config-driven rosters
   const [rosters, setRosters] = useState(FALLBACK_ROSTERS);
   const [defaultRoster, setDefaultRoster] = useState(FALLBACK_ROSTERS[0]);
   const [practiceSchedule, setPracticeSchedule] = useState(null);
+
+  // Seasons
+  const [seasons, setSeasons] = useState([]);
+  const [selectedSeason, setSelectedSeason] = useState("all");
 
   // UI state
   const [roster, setRoster] = useState(FALLBACK_ROSTERS[0]);
@@ -61,7 +30,7 @@ export default function PracticeLibrary() {
   const [loading, setLoading] = useState(false);
   const [startTime, setStartTime] = useState("06:00");
 
-  // Load config once (rosters, defaultRoster, practiceSchedule)
+  // Load config and seasons once
   useEffect(() => {
     (async () => {
       try {
@@ -83,6 +52,15 @@ export default function PracticeLibrary() {
         setDefaultRoster(FALLBACK_ROSTERS[0]);
         setRoster(FALLBACK_ROSTERS[0]);
       }
+
+      // Load seasons
+      try {
+        const seasonsData = await getSeasons();
+        setSeasons(seasonsData?.seasons || []);
+      } catch (e) {
+        console.error("Failed to load seasons", e);
+        setSeasons([]);
+      }
     })();
   }, []);
 
@@ -97,7 +75,11 @@ export default function PracticeLibrary() {
   async function refresh(p = 1) {
     setLoading(true);
     try {
-      const res = await listPractices({ roster, q, page: p, limit: 20 });
+      const params = { roster, q, page: p, limit: 10 }; // Show 10 practices per page
+      if (selectedSeason && selectedSeason !== "all") {
+        params.season = selectedSeason;
+      }
+      const res = await listPractices(params);
       setRows(res.items || []);
       setTotal(res.total || 0);
       setPage(res.page || 1);
@@ -111,8 +93,8 @@ export default function PracticeLibrary() {
     }
   }
 
-  // Reload on roster change
-  useEffect(() => { if (roster) refresh(1); /* eslint-disable-next-line */ }, [roster]);
+  // Reload on roster or season change
+  useEffect(() => { if (roster) refresh(1); /* eslint-disable-next-line */ }, [roster, selectedSeason]);
 
   // Debounced search
   useEffect(() => {
@@ -121,18 +103,41 @@ export default function PracticeLibrary() {
     // eslint-disable-next-line
   }, [q]);
 
+  // Navigate to Practice Builder with practice data
+  function handleEdit() {
+    if (!selected) return;
+    // Pass practice data with edit mode
+    navigate("/builder", {
+      state: {
+        mode: "edit",
+        practice: selected
+      }
+    });
+  }
+
+  function handleUseTemplate() {
+    if (!selected) return;
+    // Pass practice data but with today's date
+    const today = new Date().toISOString().split('T')[0];
+    navigate("/builder", {
+      state: {
+        mode: "template",
+        practice: { ...selected, date: today }
+      }
+    });
+  }
+
   return (
-    <div style={styles.page}>
-      {/* Sidebar (rosters from config) */}
-      <aside style={styles.sidebar}>
-        <div style={styles.sbTitle}>Rosters</div>
-        <ul style={styles.rosterList}>
+    <div className="practice-library-page">
+      {/* Roster Sidebar */}
+      <aside className="roster-sidebar">
+        <div className="roster-sidebar-header">Rosters</div>
+        <ul className="roster-list">
           {rosters.map((r) => (
             <li key={r}>
               <button
-                style={styles.rosterBtn(roster === r)}
+                className={`roster-btn ${roster === r ? 'active' : ''}`}
                 onClick={() => { setRoster(r); setSelected(null); }}
-                className="add-btn"
               >
                 {r}
               </button>
@@ -141,19 +146,95 @@ export default function PracticeLibrary() {
         </ul>
       </aside>
 
-      {/* Main area */}
-      <div style={styles.main}>
-        {/* Top toolbar */}
-        <div style={styles.headerBar}>
-          <div style={styles.headerLeft}>
-            <span style={{ fontSize: 16 }}>{roster}</span>
-            <span style={{ color: "#94a3b8", fontWeight: 500 }}>Practice Library</span>
+      {/* Practice List Sidebar (shows when roster selected) */}
+      {roster && (
+        <div className="practice-list-sidebar">
+          <div className="practice-list-header">
+            <div className="practice-list-filters-title">Filters</div>
+            <div className="practice-list-filter">
+              <label>Season:</label>
+              <select
+                value={selectedSeason}
+                onChange={(e) => setSelectedSeason(e.target.value)}
+              >
+                <option value="all">All Seasons</option>
+                {seasons.map((s) => (
+                  <option key={s.id || s.title} value={s.title}>
+                    {s.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="practice-list-filter">
+              <label>Search:</label>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="keyword..."
+              />
+            </div>
           </div>
-          <div style={styles.headerRight}>
-            <label className="pair">
-              <span>Search:</span>
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="title or text..." />
-            </label>
+
+          <div className="practice-list-content">
+            {loading && <div className="practice-list-loading">Loading...</div>}
+            {!loading && rows.length === 0 && <div className="practice-list-empty">No practices found</div>}
+            {!loading && rows.map((p) => (
+              <div
+                key={p._id}
+                className={`practice-card ${selected?._id === p._id ? 'active' : ''}`}
+                onClick={() => setSelected(p)}
+              >
+                <div className="practice-card-title">
+                  {p.title || `Practice ${p.date}`}
+                </div>
+                <div className="practice-card-meta">
+                  <span>{p.date}</span>
+                  {p.season && (
+                    <>
+                      <span>•</span>
+                      <span className="practice-card-season">{p.season}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination Footer */}
+          {!loading && total > 0 && (
+            <div className="practice-list-footer">
+              <button
+                className="pagination-btn"
+                onClick={() => refresh(page - 1)}
+                disabled={page <= 1}
+              >
+                ← Prev
+              </button>
+              <div className="pagination-info">
+                <div>Page {page}</div>
+                <div>{total} total</div>
+              </div>
+              <button
+                className="pagination-btn"
+                onClick={() => refresh(page + 1)}
+                disabled={page * 10 >= total}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="practice-main-content">
+        {/* Top Header Bar */}
+        <div className="practice-header-bar">
+          <div className="practice-header-left">
+            <span className="practice-header-title">📚 Practice Library</span>
+            {roster && <span className="practice-header-roster">• {roster}</span>}
+          </div>
+          <div className="practice-header-right">
             <label className="pair">
               <span>Start:</span>
               <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} step={60} />
@@ -161,41 +242,37 @@ export default function PracticeLibrary() {
           </div>
         </div>
 
-        {/* Content: list + pager + preview */}
-        <div style={styles.content}>
-          {/* List */}
-          <div style={styles.list}>
-            {rows.map((p) => (
-              <div
-                key={p._id}
-                style={styles.card(selected?._id === p._id)}
-                onClick={() => setSelected(p)}
-              >
-                <div style={{ fontWeight: 700 }}>{p.title || `Practice ${p.date}`}</div>
-                <div style={styles.cardMetaRow}>
-                  <span>{p.date}</span>
-                  <span>{p.roster}</span>
-                </div>
-              </div>
-            ))}
-            {!rows.length && !loading && (
-              <div style={{ color: "#64748b", fontStyle: "italic" }}>No practices found.</div>
-            )}
-          </div>
-
-          {/* Pager */}
-          <div style={styles.pager}>
-            <button className="add-btn light" disabled={page <= 1} onClick={() => refresh(page - 1)}>Prev</button>
-            <button className="add-btn light" disabled={page * 20 >= total} onClick={() => refresh(page + 1)}>Next</button>
-            <div style={{ marginLeft: "auto", color: "#6b7280" }}>{total} total</div>
-          </div>
-
-          {/* Preview */}
-          <div style={styles.preview}>
+        {/* Practice Preview (Main Focus) */}
+        <div className="practice-preview-area">
+          {selected && (
+            <div className="practice-actions">
+              <button className="btn-edit" onClick={handleEdit}>
+                ✏️ Edit
+              </button>
+              <button className="btn-template" onClick={handleUseTemplate}>
+                📋 Use Template
+              </button>
+            </div>
+          )}
+          <div className="practice-preview-card">
             {selected ? (
               <PracticePreview practice={selected} startTime={startTime} />
+            ) : rows.length === 0 && !loading && roster ? (
+              <div className="practice-empty-state">
+                <div className="practice-empty-icon">📋</div>
+                <div className="practice-empty-title">No practices found</div>
+                <div className="practice-empty-text">Try adjusting your filters or search query</div>
+              </div>
+            ) : !roster ? (
+              <div className="practice-empty-state">
+                <div className="practice-empty-icon">👈</div>
+                <div className="practice-empty-title">Select a roster to begin</div>
+              </div>
             ) : (
-              <div style={{ color: "#6b7280" }}>Select a practice to preview.</div>
+              <div className="practice-empty-state">
+                <div className="practice-empty-icon">👈</div>
+                <div className="practice-empty-title">Select a practice to view</div>
+              </div>
             )}
           </div>
         </div>

@@ -83,6 +83,11 @@ const PracticeSchema = new mongoose.Schema(
       trim: true,
       maxlength: [100, "Roster name must be less than 100 characters"],
     },
+    season: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Season must be less than 100 characters"],
+    },
     pool: {
       type: String,
       enum: {
@@ -118,6 +123,18 @@ const PracticeSchema = new mongoose.Schema(
         type: Number,
         default: 0,
         min: [0, "Total time cannot be negative"],
+      },
+    },
+    stats: {
+      strokes: {
+        type: Map,
+        of: Number,
+        default: {},
+      },
+      styles: {
+        type: Map,
+        of: Number,
+        default: {},
       },
     },
 

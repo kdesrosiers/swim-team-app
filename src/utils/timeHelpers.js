@@ -105,7 +105,6 @@ export function computeSectionTimeSeconds(section) {
   for (let raw of expanded.split("\n")) {
     const line = raw.trim();
     if (!line) continue;
-    if (/^break/i.test(line)) continue;
 
     const perRep = extractFirstIntervalSeconds(line);
     if (perRep == null) continue;

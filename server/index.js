@@ -8,6 +8,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { exportPracticeToDocx } from "./exportDocx.js";
 import { loadConfig, getConfig, saveConfig, watchConfig } from "./config.js";
+import { loadSeasonsConfig, getSeasonsConfig, saveSeasonsConfig, watchSeasonsConfig } from "./seasonsConfig.js";
+import { loadAcronymsConfig, getAcronymsConfig, saveAcronymsConfig, watchAcronymsConfig } from "./acronymsConfig.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,14 +33,19 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 await connectMongo();
 await loadConfig();
 watchConfig();
+await loadSeasonsConfig();
+watchSeasonsConfig();
+await loadAcronymsConfig();
+watchAcronymsConfig();
 
 // LIST practices by roster/date with paging & optional text search
 app.get("/api/practices", async (req, res) => {
   try {
-    const { roster = "", q = "", page = 1, limit = 20 } = req.query;
+    const { roster = "", season = "", q = "", page = 1, limit = 20 } = req.query;
     const userId = req.header("x-user-id") || process.env.DEV_USER_ID || "default-user";
     const where = { userId };
     if (roster) where.roster = roster;
+    if (season) where.season = season;
     if (q) {
       where.$or = [
         { title: { $regex: q, $options: "i" } },
@@ -117,6 +124,30 @@ app.put("/api/config", async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(400).json({ error: "Failed to save config", detail: String(e?.message || e) });
+  }
+});
+
+// SEASONS CONFIG
+app.get("/api/seasons", (req, res) => res.json(getSeasonsConfig() || { seasons: [] }));
+app.put("/api/seasons", async (req, res) => {
+  try {
+    const updated = await saveSeasonsConfig(req.body || { seasons: [] });
+    res.json(updated);
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ error: "Failed to save seasons config", detail: String(e?.message || e) });
+  }
+});
+
+// ACRONYMS CONFIG
+app.get("/api/acronyms", (req, res) => res.json(getAcronymsConfig() || { strokes: {}, styles: {} }));
+app.put("/api/acronyms", async (req, res) => {
+  try {
+    const updated = await saveAcronymsConfig(req.body || { strokes: {}, styles: {} });
+    res.json(updated);
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ error: "Failed to save acronyms config", detail: String(e?.message || e) });
   }
 });
 

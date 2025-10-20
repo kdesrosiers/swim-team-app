@@ -6,7 +6,9 @@ import Layout from './components/Layout';
 import Home from './pages/Home';
 import PracticeBuilder from './pages/PracticeBuilder';
 import PracticeLibrary from './pages/PracticeLibrary';
+import ConfigHub from './pages/ConfigHub';
 import ConfigMaintenance from './pages/ConfigMaintenance';
+import SeasonsMaintenance from './pages/SeasonsMaintenance';
 import NotFound from './pages/NotFound';
 import './App.css';
 
@@ -44,7 +46,9 @@ function App() {
               <Route index element={<Home />} />
               <Route path="builder" element={<PracticeBuilder />} />
               <Route path="practices" element={<PracticeLibrary />} />
-              <Route path="config" element={<ConfigMaintenance />} />
+              <Route path="config" element={<ConfigHub />} />
+              <Route path="config/rosters" element={<ConfigMaintenance />} />
+              <Route path="config/seasons" element={<SeasonsMaintenance />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

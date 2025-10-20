@@ -1,10 +1,13 @@
 // src/pages/PracticeBuilder.js
 import React, { useState, useMemo, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import "./PracticeBuilder.css";
 import { parseYardage } from "../utils/yardageParser";
-import { exportPracticeDocx } from "../api/practices";
+import { exportPracticeDocx, updatePractice } from "../api/practices";
 import { getConfig } from "../api/config";
+import { getSeasons } from "../api/seasons";
+import { getAcronyms } from "../api/acronyms";
 import { handleSavePractice } from "../api/PracticeBuilder";
 import {
   computeSectionTimeSeconds,
@@ -14,6 +17,7 @@ import {
   formatClock12,
   formatYardage,
 } from "../utils/timeHelpers";
+import { aggregatePracticeStats, setAcronymsConfig } from "../utils/statsParser";
 
 import {
   DndContext,
@@ -33,6 +37,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 function nextStartFor(config, roster, yyyyMmDd) {
   // Uses per-roster schedule: practiceSchedule[roster][dayKey] -> "HH:MM" or "OFF"
   if (!config?.practiceSchedule || !roster || !yyyyMmDd) return null;
@@ -43,6 +48,25 @@ function nextStartFor(config, roster, yyyyMmDd) {
   const v = week[key];
   if (!v || v === "OFF") return null;
   return v; // "HH:MM"
+}
+
+function findSeasonByDate(seasons, yyyyMmDd) {
+  // Find which season the date falls in
+  if (!seasons || !Array.isArray(seasons) || !yyyyMmDd) return null;
+
+  const date = new Date(yyyyMmDd);
+  for (const season of seasons) {
+    if (!season.startDate || !season.endDate) continue;
+
+    const startDate = new Date(season.startDate);
+    const endDate = new Date(season.endDate);
+
+    if (date >= startDate && date <= endDate) {
+      return season.title;
+    }
+  }
+
+  return null;
 }
 
 // Find the index of the "Warm Up" section (case-insensitive)
@@ -57,6 +81,12 @@ function findWarmupIndex(sections) {
 /* -------------------------------- */
 
 function PracticeBuilder() {
+  const location = useLocation();
+  const incomingState = location.state || {};
+  const editMode = incomingState.mode === "edit";
+  const templateMode = incomingState.mode === "template";
+  const incomingPractice = incomingState.practice;
+
   // Sections state
   const [sections, setSections] = useState([
     {
@@ -74,6 +104,7 @@ function PracticeBuilder() {
   ]);
 
   const [showPreview, setShowPreview] = useState(false);
+  const [showStats, setShowStats] = useState(true);
 
   // DnD
   const sensors = useSensors(
@@ -95,6 +126,7 @@ function PracticeBuilder() {
     new Date().toISOString().slice(0, 10) // "YYYY-MM-DD"
   );
   const [config, setConfig] = useState(null);
+  const [seasons, setSeasons] = useState([]);
   const [rosterOptions, setRosterOptions] = useState([]);
   const [selectedRoster, setSelectedRoster] = useState("");
   const [startTime, setStartTime] = useState("06:00");
@@ -103,10 +135,11 @@ function PracticeBuilder() {
   const [saving, setSaving] = useState(false);
 
 
-  // Load config once
+  // Load config and seasons once
   useEffect(() => {
     (async () => {
       try {
+        // Load config
         const cfg = await getConfig();
         setConfig(cfg || {});
         // Roster options from config
@@ -115,6 +148,10 @@ function PracticeBuilder() {
             ? cfg.rosters
             : ["Yellow", "Blue", "White", "Bronze", "Silver", "Gold/Platinum"];
         setRosterOptions(rosters);
+
+        // Load acronyms config
+        const acronyms = await getAcronyms();
+        setAcronymsConfig(acronyms || { strokes: {}, styles: {} });
 
         // Choose default: config.defaultRoster -> first roster
         const initial = (cfg?.defaultRoster && rosters.includes(cfg.defaultRoster))
@@ -134,9 +171,52 @@ function PracticeBuilder() {
         setRosterOptions(fallback);
         if (!selectedRoster) setSelectedRoster(fallback[0]);
       }
+
+      // Load seasons config
+      try {
+        const seasonsData = await getSeasons();
+        setSeasons(seasonsData?.seasons || []);
+      } catch (e) {
+        console.error("Failed to load seasons", e);
+        setSeasons([]);
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Load incoming practice data (for Edit or Template mode) - only once
+  useEffect(() => {
+    if (!incomingPractice) return;
+
+    // Set date and roster
+    if (templateMode) {
+      // Use today's date for template mode
+      setPracticeDate(new Date().toISOString().slice(0, 10));
+    } else if (editMode && incomingPractice.date) {
+      setPracticeDate(incomingPractice.date);
+    }
+
+    if (incomingPractice.roster) {
+      setSelectedRoster(incomingPractice.roster);
+    }
+
+    if (incomingPractice.pool) {
+      setPool(incomingPractice.pool);
+    }
+
+    // Map practice sections to builder format
+    if (incomingPractice.sections && Array.isArray(incomingPractice.sections)) {
+      const mappedSections = incomingPractice.sections.map((s, idx) => ({
+        id: String(idx + 1),
+        name: s.title || s.type || "Section",
+        type: s.type?.toLowerCase() === "break" ? "break" : "swim",
+        content: s.text || ""
+      }));
+      setSections(mappedSections);
+    }
+    // Start time will be set by the next useEffect when date/roster/config are ready
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingPractice]);
 
   // When date or roster changes and we have config, adjust startTime from schedule (if defined)
   useEffect(() => {
@@ -171,6 +251,11 @@ function PracticeBuilder() {
   const totalYardage = sectionYardages.reduce((sum, v) => sum + v, 0);
   const totalTimeSec = sectionTimes.reduce((sum, v) => sum + v, 0);
 
+  // Compute stats by swim type
+  const swimTypeStats = useMemo(() => {
+    return aggregatePracticeStats(sections, sectionYardages);
+  }, [sections, sectionYardages]);
+
   // Preview end clocks (rounded up to the next minute)
   const sectionEndClocks = useMemo(() => {
     let clock = secondsFromHHMM(startTime); // seconds from midnight for Start:
@@ -191,26 +276,55 @@ function PracticeBuilder() {
 
   async function onSave() {
     try {
+      const seasonTitle = findSeasonByDate(seasons, practiceDate);
       const title = `Practice ${formatMDY(practiceDate)}${selectedRoster ? ` ${selectedRoster}` : ""}`;
       const date = practiceDate;
       const poolValue = pool;
 
-      // ⬇️ Call the helper with the parameter names it expects.
-      // (It maps sections itself, so pass raw sections + computed arrays.)
-      await handleSavePractice({
-        practiceTitle: title,
-        practiceDate: date,
-        pool: poolValue,
-        selectedRoster,
-        sections,            // pass raw sections; helper will map them
-        sectionYardages,
-        sectionTimes,
-        totalYardage,
-        totalTimeSec,
-        // startTime is not persisted in the practice model, so we omit it here
-      });
+      if (editMode && incomingPractice?._id) {
+        // Update existing practice
+        const sectionsForApi = sections.map((s, i) => ({
+          type: s.type === "break" ? "Break" : (s.name || "Section"),
+          title: s.type === "break" ? (s.name || "Break") : (s.name || "Section"),
+          text: s.content || "",
+          yardage: Number.isFinite(sectionYardages[i]) ? sectionYardages[i] : 0,
+          timeSeconds: Number.isFinite(sectionTimes[i]) ? sectionTimes[i] : 0,
+        }));
 
-      toast.success("Practice saved successfully!");
+        await updatePractice(incomingPractice._id, {
+          title,
+          date,
+          pool: poolValue,
+          roster: selectedRoster,
+          season: seasonTitle || undefined,
+          sections: sectionsForApi,
+          totals: {
+            yardage: totalYardage,
+            timeSeconds: totalTimeSec,
+          },
+          stats: swimTypeStats || undefined,
+        });
+
+        toast.success("Practice updated successfully!");
+      } else {
+        // Create new practice
+        await handleSavePractice({
+          practiceTitle: title,
+          practiceDate: date,
+          pool: poolValue,
+          selectedRoster,
+          season: seasonTitle,
+          sections,            // pass raw sections; helper will map them
+          sectionYardages,
+          sectionTimes,
+          totalYardage,
+          totalTimeSec,
+          stats: swimTypeStats, // include computed stats
+          // startTime is not persisted in the practice model, so we omit it here
+        });
+
+        toast.success("Practice saved successfully!");
+      }
     } catch (e) {
       console.error(e);
       toast.error(e.message || "Failed to save practice. Check console for details.");
@@ -261,6 +375,7 @@ function PracticeBuilder() {
     if (saving) return;
     setSaving(true);
     try {
+      const seasonTitle = findSeasonByDate(seasons, practiceDate);
       const title = `Practice ${formatMDY(practiceDate)}${selectedRoster ? ` ${selectedRoster}` : ""}`;
       const date = practiceDate;
       const poolValue = pool;
@@ -281,6 +396,7 @@ function PracticeBuilder() {
         practiceDate: date,
         pool: poolValue,
         selectedRoster,
+        season: seasonTitle,
         sections,
         sectionYardages,
         sectionTimes,
@@ -307,6 +423,40 @@ function PracticeBuilder() {
       setSaving(false);
     }
   }
+
+  // Reset to new practice
+  const handleReset = () => {
+    if (!window.confirm("Are you sure you want to start a new practice? Any unsaved changes will be lost.")) {
+      return;
+    }
+
+    // Reset to default state
+    setPracticeDate(new Date().toISOString().slice(0, 10));
+    const defaultRosterFromConfig = config?.defaultRoster && rosterOptions.includes(config.defaultRoster)
+      ? config.defaultRoster
+      : rosterOptions[0] || "";
+    setSelectedRoster(defaultRosterFromConfig);
+    setPool("SCM");
+    setSections([
+      {
+        id: "1",
+        name: "Warm Up",
+        type: "swim",
+        content: `400 Free @ 10:00
+4 x 100 K/S/D/S @ 2:00
+4 x 50 Build @ :50`,
+      },
+      { id: "2", name: "Pre-Set", type: "swim", content: "" },
+      { id: "3", name: "Break", type: "break", content: "5:00" },
+      { id: "4", name: "Main Set", type: "swim", content: "" },
+      { id: "5", name: "Cool Down", type: "swim", content: "200 EZ @ 5:00" },
+    ]);
+
+    // Clear incoming practice state by navigating to builder without state
+    window.history.replaceState({}, document.title);
+
+    toast.success("Started new practice");
+  };
 
   // Section CRUD
   const addSwimSection = () => {
@@ -339,6 +489,9 @@ function PracticeBuilder() {
                 value={practiceDate}
                 onChange={(e) => setPracticeDate(e.target.value)}
               />
+              {findSeasonByDate(seasons, practiceDate) && (
+                <span className="season-badge">{findSeasonByDate(seasons, practiceDate)}</span>
+              )}
             </label>
 
             <label className="pair">
@@ -374,96 +527,203 @@ function PracticeBuilder() {
           </div>
         </div>
 
-        {/* Sections (DnD) */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-          accessibility={{
-            screenReaderInstructions: { draggable: "" },
-            announcements: {
-              onDragStart: () => "",
-              onDragMove: () => "",
-              onDragOver: () => "",
-              onDragEnd: () => "",
-              onDragCancel: () => "",
-            },
-          }}
-        >
-          <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-            {sections.map((section, idx) => (
-              <SortableSection
-                key={section.id}
-                section={section}
-                onChange={updateSection}
-                onDelete={deleteSection}
-                yardage={sectionYardages[idx]}
-                timeSec={sectionTimes[idx]}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
+        {/* Two-column layout */}
+        <div className="builder-columns">
+          {/* Left column: Sections */}
+          <div className="builder-left">
+            {/* Sections (DnD) */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              accessibility={{
+                screenReaderInstructions: { draggable: "" },
+                announcements: {
+                  onDragStart: () => "",
+                  onDragMove: () => "",
+                  onDragOver: () => "",
+                  onDragEnd: () => "",
+                  onDragCancel: () => "",
+                },
+              }}
+            >
+              <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                {sections.map((section, idx) => (
+                  <SortableSection
+                    key={section.id}
+                    section={section}
+                    onChange={updateSection}
+                    onDelete={deleteSection}
+                    yardage={sectionYardages[idx]}
+                    timeSec={sectionTimes[idx]}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
 
-        {/* Add buttons */}
-        <div className="topbar">
-          <div className="add-buttons">
-            <button className="add-btn" onClick={addSwimSection}>+ Add Section</button>
-            <button className="add-btn light" onClick={addBreakSection}>+ Add Break</button>
-          </div>
-          <div className="actions">
-            <button className="preview-btn" onClick={() => setShowPreview(!showPreview)}>
-              {showPreview ? 'Hide Preview' : 'Show Preview'}
-            </button>
-            <button className="preview-btn" onClick={onSave}>💾 Save Practice</button>
-            <button className="preview-btn" onClick={handleExportDocx}>⬇️ Export Word</button>
-            <button className="preview-btn" onClick={onSaveAndExport} disabled={saving}>
-              💾⬇️ Save & Export
-            </button>
-          </div>
-        </div>
-
-        {/* Preview */}
-        {showPreview && (
-          <div className="preview-panel">
-            {sections.map((section, index) =>
-              section.type === "break" ? (
-                <div key={section.id} className="preview-break">
-                  {section.name || "Break"}
-                  {section.content ? ` @ ${section.content}` : ""}
-                </div>
-              ) : (
-                <div key={section.id} className="preview-section">
-                  <div className="preview-title-row">
-                    <div className="preview-title-left">
-                      {section.name}
-                      {sectionYardages[index] > 0 ? ` – ${formatYardage(sectionYardages[index])}m` : ""}
-                    </div>
-                    <div className="preview-title-right">
-                      {sectionTimes[index] > 0
-                        ? `${formatSeconds(sectionTimes[index])} \u2192 ${formatClock12(sectionEndClocks[index], false)}`
-                        : ""}
-                    </div>
-                  </div>
-
-                  {section.content.split("\n").map((line, i) => (
-                    <div key={i} className="preview-line">
-                      {line.trim() === "" ? <br /> : line}
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
-
-            <div className="preview-total-row">
-              <div className="preview-total-left">
-                <strong>Total: {formatYardage(totalYardage)}m</strong>
+            {/* Add buttons */}
+            <div className="topbar">
+              <div className="add-buttons">
+                <button className="add-btn" onClick={addSwimSection}>+ Add Section</button>
+                <button className="add-btn light" onClick={addBreakSection}>+ Add Break</button>
               </div>
-              <div className="preview-total-right">
-                <strong>{totalTimeSec > 0 ? formatSeconds(totalTimeSec) : ""}</strong>
+              <div className="actions">
+                <button className="preview-btn" onClick={onSave}>💾 Save Practice</button>
+                <button className="preview-btn" onClick={handleExportDocx}>⬇️ Export Word</button>
+                <button className="preview-btn" onClick={onSaveAndExport} disabled={saving}>
+                  💾⬇️ Save & Export
+                </button>
+                <button className="preview-btn secondary" onClick={handleReset}>🔄 New Practice</button>
               </div>
             </div>
           </div>
-        )}
+
+          {/* Right column: Preview and Stats */}
+          <div className="builder-right">
+            {/* Preview/Stats Toggle Buttons */}
+            <div className="right-panel-controls">
+              <button
+                className={`toggle-btn ${showStats ? 'active' : ''}`}
+                onClick={() => setShowStats(!showStats)}
+              >
+                {showStats ? '✓ ' : ''}Stats
+              </button>
+              <button
+                className={`toggle-btn ${showPreview ? 'active' : ''}`}
+                onClick={() => setShowPreview(!showPreview)}
+              >
+                {showPreview ? '✓ ' : ''}Preview
+              </button>
+            </div>
+
+            {/* Stats */}
+            {showStats && (
+              <div className="stats-panel">
+                <h2 className="stats-title">Practice Statistics</h2>
+
+                <div className="stats-summary">
+                  <div className="stat-item">
+                    <span className="stat-label">Total Yardage:</span>
+                    <span className="stat-value">{formatYardage(totalYardage)}m</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Total Time:</span>
+                    <span className="stat-value">{formatSeconds(totalTimeSec)}</span>
+                  </div>
+                </div>
+
+                <h3 className="stats-subtitle">Breakdown by Strokes</h3>
+                <div className="stats-breakdown">
+                  {Object.keys(swimTypeStats.strokes || {}).length === 0 ? (
+                    <p className="stats-empty">No stroke data to analyze</p>
+                  ) : (
+                    <table className="stats-table">
+                      <thead>
+                        <tr>
+                          <th>Stroke</th>
+                          <th>Yardage</th>
+                          <th>% of Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(swimTypeStats.strokes || {})
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([stroke, yardage]) => {
+                            const percentage = totalYardage > 0
+                              ? ((yardage / totalYardage) * 100).toFixed(1)
+                              : 0;
+                            return (
+                              <tr key={stroke}>
+                                <td className="stat-type">{stroke}</td>
+                                <td className="stat-yardage">{formatYardage(yardage)}m</td>
+                                <td className="stat-percentage">{percentage}%</td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                <h3 className="stats-subtitle" style={{ marginTop: 'var(--space-md)' }}>Breakdown by Styles</h3>
+                <div className="stats-breakdown">
+                  {Object.keys(swimTypeStats.styles || {}).length === 0 ? (
+                    <p className="stats-empty">No style data to analyze</p>
+                  ) : (
+                    <table className="stats-table">
+                      <thead>
+                        <tr>
+                          <th>Style</th>
+                          <th>Yardage</th>
+                          <th>% of Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(swimTypeStats.styles || {})
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([style, yardage]) => {
+                            const percentage = totalYardage > 0
+                              ? ((yardage / totalYardage) * 100).toFixed(1)
+                              : 0;
+                            return (
+                              <tr key={style}>
+                                <td className="stat-type">{style}</td>
+                                <td className="stat-yardage">{formatYardage(yardage)}m</td>
+                                <td className="stat-percentage">{percentage}%</td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Preview */}
+            {showPreview && (
+              <div className="preview-panel" style={{ marginTop: showStats ? 'var(--space-lg)' : '0' }}>
+                {sections.map((section, index) =>
+                  section.type === "break" ? (
+                    <div key={section.id} className="preview-break">
+                      {section.name || "Break"}
+                      {section.content ? ` @ ${section.content}` : ""}
+                    </div>
+                  ) : (
+                    <div key={section.id} className="preview-section">
+                      <div className="preview-title-row">
+                        <div className="preview-title-left">
+                          {section.name}
+                          {sectionYardages[index] > 0 ? ` – ${formatYardage(sectionYardages[index])}m` : ""}
+                        </div>
+                        <div className="preview-title-right">
+                          {sectionTimes[index] > 0
+                            ? `${formatSeconds(sectionTimes[index])} \u2192 ${formatClock12(sectionEndClocks[index], false)}`
+                            : ""}
+                        </div>
+                      </div>
+
+                      {section.content.split("\n").map((line, i) => (
+                        <div key={i} className="preview-line">
+                          {line.trim() === "" ? <br /> : line}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+
+                <div className="preview-total-row">
+                  <div className="preview-total-left">
+                    <strong>Total: {formatYardage(totalYardage)}m</strong>
+                  </div>
+                  <div className="preview-total-right">
+                    <strong>{totalTimeSec > 0 ? formatSeconds(totalTimeSec) : ""}</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

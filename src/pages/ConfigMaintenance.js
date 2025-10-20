@@ -1,5 +1,6 @@
 // src/pages/ConfigMaintenance.js
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import "./ConfigMaintenance.css";
 import { getConfig, updateConfig } from "../api/config";
@@ -7,6 +8,7 @@ import { getConfig, updateConfig } from "../api/config";
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function ConfigMaintenance() {
+  const navigate = useNavigate();
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -141,7 +143,12 @@ function ConfigMaintenance() {
     <div className="config-page">
       <div className="config-container">
         <div className="config-header">
-          <h1>Configuration Maintenance</h1>
+          <div className="config-header-left">
+            <button className="back-btn" onClick={() => navigate("/config")}>
+              ← Back
+            </button>
+            <h1>Roster Configuration</h1>
+          </div>
           <div className="config-actions">
             <button className="config-btn save" onClick={handleSave} disabled={saving}>
               {saving ? "Saving..." : "💾 Save Configuration"}

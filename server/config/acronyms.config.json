@@ -1,0 +1,18 @@
+{
+  "strokes": {
+    "Free": ["FR", "Free", "Freestyle", "Free Style", "FS"],
+    "Back": ["BK", "Back", "Backstroke", "Back Stroke"],
+    "Breast": ["BR", "Breast", "Breaststroke", "Breast Stroke"],
+    "Fly": ["FL", "Fly", "Butterfly", "Butter Fly", "BF"],
+    "Stroke": ["STK", "Stroke", "ST"],
+    "IM": ["IM", "I.M.", "Individual Medley", "Medley", "RIMO", "IMO", "YAR"],
+    "Choice": ["CH", "Choice", "CHC", "Swimmers Choice"]
+  },
+  "styles": {
+    "Swim": ["Swim", "Swimming", "SW", "S"],
+    "Drill": ["Drill", "Drills", "DR", "DRL", "D"],
+    "Pull": ["Pull", "Pulling", "PL", "PorS", "P"],
+    "Kick": ["Kick", "Kicking", "KK", "K", "KOB"],
+    "Underwater":["Underwater", "UW", "UWK"]
+  }
+}

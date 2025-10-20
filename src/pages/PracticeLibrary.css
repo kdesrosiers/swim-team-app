@@ -1,146 +1,422 @@
 /* ========== Practice Library Page ========== */
-.library-page {
+.practice-library-page {
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
-  min-height: calc(100vh - var(--header-height));
   background: var(--gray-50);
+  overflow: hidden;
 }
 
-/* ========== Sidebar ========== */
-.library-sidebar {
-  width: 280px;
+/* ========== Roster Sidebar (Column 1) ========== */
+.roster-sidebar {
+  width: 240px;
   background: var(--gray-900);
-  color: white;
+  color: #fff;
   display: flex;
   flex-direction: column;
-  padding: var(--space-xl) var(--space-lg);
-  box-shadow: var(--shadow-lg);
-  overflow-y: auto;
+  border-right: 1px solid var(--gray-800);
+  height: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.library-sidebar h2 {
-  font-size: 1.125rem;
+.roster-sidebar-header {
+  padding: var(--space-lg) var(--space-md);
+  border-bottom: 1px solid var(--gray-800);
+  font-size: 0.875rem;
   font-weight: 700;
-  margin-bottom: var(--space-lg);
-  color: white;
-  padding-bottom: var(--space-sm);
-  border-bottom: 2px solid var(--gray-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray-400);
+  flex-shrink: 0;
 }
 
 .roster-list {
   list-style: none;
+  padding: var(--space-sm) var(--space-md);
   margin: 0;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.roster-btn {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--gray-300);
+  border: 1px solid transparent;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+.roster-btn:hover {
+  background: var(--gray-800);
+  color: white;
+  border-color: var(--gray-700);
+}
+
+.roster-btn.active {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  border-color: transparent;
+}
+
+/* ========== Practice List Sidebar (Column 2) ========== */
+.practice-list-sidebar {
+  width: 280px;
+  background: white;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.practice-list-header {
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  background: var(--gray-50);
+  flex-shrink: 0;
+}
+
+.practice-list-filters-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.practice-list-filter {
+  margin-bottom: var(--space-sm);
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
 }
 
-.roster-item {
-  padding: var(--space-md);
+.practice-list-filter:last-child {
+  margin-bottom: 0;
+}
+
+.practice-list-filter label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.practice-list-filter select,
+.practice-list-filter input {
+  width: 100%;
+  font-size: 0.875rem;
+  padding: var(--space-xs) var(--space-sm);
+  border: 2px solid var(--border);
   border-radius: var(--radius-md);
+  transition: border-color 0.2s;
+  background: white;
+}
+
+.practice-list-filter select:focus,
+.practice-list-filter input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.practice-list-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-sm);
+  min-height: 0;
+}
+
+.practice-list-loading,
+.practice-list-empty {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.practice-card {
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-weight: 500;
-  color: var(--gray-300);
-  font-size: 0.9375rem;
 }
 
-.roster-item:hover {
-  background: var(--gray-800);
-  color: white;
+.practice-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
 }
 
-.roster-item.active {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-  color: white;
-  font-weight: 600;
+.practice-card.active {
+  background: var(--primary-lightest);
+  border-color: var(--primary);
   box-shadow: var(--shadow-md);
 }
 
-/* ========== Main Content ========== */
-.library-main {
-  flex: 1;
-  padding: var(--space-2xl);
-  overflow-y: auto;
-  max-width: var(--max-width);
-  margin: 0 auto;
-  width: 100%;
+.practice-card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-xs);
+  line-height: 1.4;
 }
 
-.library-main h1 {
-  margin-bottom: var(--space-xl);
+.practice-card-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.practice-card-season {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.practice-list-footer {
+  padding: var(--space-md) var(--space-sm);
+  border-top: 1px solid var(--border);
+  background: var(--gray-50);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.pagination-btn {
+  padding: var(--space-xs) var(--space-md);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: white;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text);
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--primary-lightest);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ========== Main Content Area (Column 3) ========== */
+.practice-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.practice-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: 1px solid var(--border);
+  background: white;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.practice-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.practice-header-title {
   background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-.practice-list {
-  margin-bottom: var(--space-xl);
+.practice-header-roster {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.practice-header-right {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--space-md);
 }
 
-.practice-card {
-  background: white;
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
+.practice-preview-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.practice-actions {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl) 0 var(--space-xl);
+  flex-shrink: 0;
+}
+
+.practice-actions button {
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 2px solid var(--border);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.btn-edit {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-edit:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
 }
 
-.practice-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-light);
-}
-
-.practice-card h3 {
-  font-size: 1.125rem;
-  margin-bottom: var(--space-xs);
-  color: var(--gray-900);
-}
-
-.practice-card p {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.practice-preview {
+.btn-template {
   background: white;
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-  box-shadow: var(--shadow-lg);
+  color: var(--gray-700);
   border: 1px solid var(--border);
 }
 
+.btn-template:hover {
+  background: var(--gray-50);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.practice-preview-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: var(--space-2xl);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  margin: var(--space-xl);
+  min-height: calc(100% - var(--space-2xl) * 2);
+}
+
+.practice-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-3xl);
+  color: var(--text-secondary);
+  height: 100%;
+}
+
+.practice-empty-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-lg);
+  opacity: 0.5;
+}
+
+.practice-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-xs);
+}
+
+.practice-empty-text {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+/* ========== Utility Classes ========== */
+.pair {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.pair span {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.pair input[type="time"] {
+  padding: var(--space-xs) var(--space-sm);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+}
+
+.pair input[type="time"]:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
 /* ========== Responsive ========== */
-@media (max-width: 768px) {
-  .library-page {
+@media (max-width: 1024px) {
+  .practice-library-page {
     flex-direction: column;
+    position: relative;
+    top: 0;
+    height: auto;
+    min-height: 100vh;
   }
 
-  .library-sidebar {
+  .roster-sidebar,
+  .practice-list-sidebar {
     width: 100%;
+    height: auto;
     max-height: 200px;
-    padding: var(--space-md);
   }
 
-  .roster-list {
-    flex-direction: row;
-    overflow-x: auto;
-    gap: var(--space-sm);
-  }
-
-  .roster-item {
-    white-space: nowrap;
-  }
-
-  .library-main {
-    padding: var(--space-md);
+  .practice-main-content {
+    height: auto;
+    min-height: calc(100vh - var(--header-height) - 400px);
   }
 }
