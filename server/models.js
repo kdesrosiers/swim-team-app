@@ -152,3 +152,144 @@ PracticeSchema.index({ date: 1, roster: 1 });  // for library filtering/sorting
 
 // Export as a named export `Practice`
 export const Practice = mongoose.model("Practice", PracticeSchema);
+
+/**
+ * User schema for authentication and account management
+ */
+const UserSchema = new mongoose.Schema(
+  {
+    firstName: {
+      type: String,
+      required: [true, "First name is required"],
+      trim: true,
+      maxlength: [100, "First name must be less than 100 characters"],
+    },
+    lastName: {
+      type: String,
+      required: [true, "Last name is required"],
+      trim: true,
+      maxlength: [100, "Last name must be less than 100 characters"],
+    },
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
+      trim: true,
+      lowercase: true,
+      match: [/^\S+@\S+\.\S+$/, "Please provide a valid email address"],
+    },
+    phone: {
+      type: String,
+      trim: true,
+      match: [/^[\d\s\-\+\(\)]+$/, "Please provide a valid phone number"],
+    },
+    username: {
+      type: String,
+      required: [true, "Username is required"],
+      unique: true,
+      trim: true,
+      minlength: [3, "Username must be at least 3 characters"],
+      maxlength: [50, "Username must be less than 50 characters"],
+    },
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minlength: [8, "Password must be at least 8 characters"],
+    },
+    subscription: {
+      type: {
+        type: String,
+        enum: ["free", "basic", "premium", "enterprise"],
+        default: "free",
+      },
+      startDate: {
+        type: Date,
+        default: Date.now,
+      },
+      renewDate: {
+        type: Date,
+      },
+      status: {
+        type: String,
+        enum: ["active", "expired", "cancelled", "trial"],
+        default: "trial",
+      },
+    },
+    paymentHistory: [
+      {
+        date: { type: Date, default: Date.now },
+        amount: { type: Number, required: true },
+        currency: { type: String, default: "USD" },
+        status: {
+          type: String,
+          enum: ["success", "failed", "pending", "refunded"],
+          required: true,
+        },
+        transactionId: String,
+        description: String,
+      },
+    ],
+    permissions: {
+      type: [String],
+      default: ["read:practices", "write:practices"],
+      // Example permissions: "admin", "read:practices", "write:practices", "manage:users"
+    },
+    billingInfo: {
+      creditCard: {
+        lastFour: String,
+        brand: String, // visa, mastercard, amex, etc.
+        expiryMonth: Number,
+        expiryYear: Number,
+      },
+      address: {
+        street: String,
+        city: String,
+        state: String,
+        zipCode: String,
+        country: { type: String, default: "US" },
+      },
+    },
+    swimTeam: {
+      name: {
+        type: String,
+        trim: true,
+        maxlength: [200, "Team name must be less than 200 characters"],
+      },
+      abbreviation: {
+        type: String,
+        trim: true,
+        uppercase: true,
+        maxlength: [10, "Team abbreviation must be less than 10 characters"],
+      },
+      teamId: {
+        type: String,
+        trim: true,
+      },
+    },
+    lastLogin: Date,
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { versionKey: false }
+);
+
+// Indexes for performance
+UserSchema.index({ email: 1 });
+UserSchema.index({ username: 1 });
+UserSchema.index({ "subscription.status": 1 });
+
+// Update the updatedAt timestamp before saving
+UserSchema.pre("save", function (next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+export const User = mongoose.model("User", UserSchema);

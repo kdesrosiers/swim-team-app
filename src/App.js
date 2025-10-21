@@ -9,6 +9,8 @@ import PracticeLibrary from './pages/PracticeLibrary';
 import ConfigHub from './pages/ConfigHub';
 import ConfigMaintenance from './pages/ConfigMaintenance';
 import SeasonsMaintenance from './pages/SeasonsMaintenance';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import NotFound from './pages/NotFound';
 import './App.css';
 
@@ -42,6 +44,11 @@ function App() {
         />
         <Suspense fallback={<div style={{padding: 20}}>Loading…</div>}>
           <Routes>
+            {/* Public routes (no layout) */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+
+            {/* Protected routes (with layout) */}
             <Route path="/" element={<Layout />}>
               <Route index element={<Home />} />
               <Route path="builder" element={<PracticeBuilder />} />

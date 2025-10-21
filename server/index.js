@@ -3,7 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { connectMongo } from "./db.js";
 // ⬇️ Alias the export so the name matches what you use below
-import { Practice as PracticeModel } from "./models.js";
+import { Practice as PracticeModel, User } from "./models.js";
+import { hashPassword, comparePassword, generateToken, authMiddleware } from "./auth.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { exportPracticeToDocx } from "./exportDocx.js";
@@ -20,7 +21,10 @@ app.use(express.json());
 
 // simple guard (dev)
 app.use((req, res, next) => {
-  if (req.path === "/health") return next();   // skip auth for health check
+  // Skip auth for health check and auth endpoints
+  const publicPaths = ["/health", "/api/auth/register", "/api/auth/login"];
+  if (publicPaths.includes(req.path)) return next();
+
   const key = req.header("x-admin-key");
   if (!key || key !== process.env.ADMIN_KEY) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -37,6 +41,147 @@ await loadSeasonsConfig();
 watchSeasonsConfig();
 await loadAcronymsConfig();
 watchAcronymsConfig();
+
+// ========== AUTH ENDPOINTS ==========
+
+// REGISTER a new user
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone, username, password, swimTeam } = req.body;
+
+    // Validation
+    if (!firstName || !lastName || !email || !username || !password) {
+      return res.status(400).json({ error: "All required fields must be provided" });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    if (existingUser) {
+      if (existingUser.email === email) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+      return res.status(400).json({ error: "Username already taken" });
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Create user
+    const user = new User({
+      firstName,
+      lastName,
+      email,
+      phone: phone || undefined,
+      username,
+      password: hashedPassword,
+      swimTeam: swimTeam || {},
+      subscription: {
+        type: "free",
+        status: "trial",
+        startDate: new Date(),
+        renewDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days trial
+      },
+    });
+
+    await user.save();
+
+    // Generate token
+    const token = generateToken(user);
+
+    // Return user without password
+    const userResponse = {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      username: user.username,
+      swimTeam: user.swimTeam,
+      subscription: user.subscription,
+      permissions: user.permissions,
+    };
+
+    res.status(201).json({ user: userResponse, token });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(500).json({ error: "Registration failed", detail: error.message });
+  }
+});
+
+// LOGIN user
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { emailOrUsername, password } = req.body;
+
+    if (!emailOrUsername || !password) {
+      return res.status(400).json({ error: "Email/username and password are required" });
+    }
+
+    // Find user by email or username
+    const user = await User.findOne({
+      $or: [{ email: emailOrUsername.toLowerCase() }, { username: emailOrUsername }],
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(403).json({ error: "Account is deactivated" });
+    }
+
+    // Verify password
+    const isPasswordValid = await comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate token
+    const token = generateToken(user);
+
+    // Return user without password
+    const userResponse = {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      username: user.username,
+      swimTeam: user.swimTeam,
+      subscription: user.subscription,
+      permissions: user.permissions,
+      lastLogin: user.lastLogin,
+    };
+
+    res.json({ user: userResponse, token });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Login failed", detail: error.message });
+  }
+});
+
+// GET current user profile (protected)
+app.get("/api/auth/me", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error("Get user error:", error);
+    res.status(500).json({ error: "Failed to get user", detail: error.message });
+  }
+});
+
+// ========== PRACTICES ENDPOINTS ==========
 
 // LIST practices by roster/date with paging & optional text search
 app.get("/api/practices", async (req, res) => {

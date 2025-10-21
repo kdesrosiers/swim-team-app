@@ -1,0 +1,157 @@
+.register-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  padding: var(--space-lg);
+}
+
+.register-container {
+  width: 100%;
+  max-width: 600px;
+}
+
+.register-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: var(--space-2xl);
+  box-shadow: var(--shadow-2xl);
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: var(--space-2xl);
+}
+
+.register-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.register-header p {
+  font-size: 1rem;
+  color: var(--gray-600);
+  margin: 0;
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.form-group input {
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-divider {
+  text-align: center;
+  position: relative;
+  margin: var(--space-sm) 0;
+}
+
+.form-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+}
+
+.form-divider span {
+  position: relative;
+  background: white;
+  padding: 0 var(--space-md);
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  font-weight: 500;
+}
+
+.register-btn {
+  padding: var(--space-md);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: var(--space-sm);
+}
+
+.register-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.register-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.register-footer {
+  margin-top: var(--space-xl);
+  text-align: center;
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border);
+}
+
+.register-footer p {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  margin: 0;
+}
+
+.register-footer a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.register-footer a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .register-card {
+    padding: var(--space-xl);
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
