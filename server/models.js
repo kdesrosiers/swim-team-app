@@ -18,11 +18,9 @@ import mongoose from "mongoose";
  * - totals.yardage/timeSeconds: min 0
  */
 
-/** A single section in a practice (swim or break) */
-const SectionSchema = new mongoose.Schema(
+/** A single section within a group (for group splits) */
+const GroupSectionSchema = new mongoose.Schema(
   {
-    // For non-breaks, we store the section header in both `type` and `title`
-    // (historical compatibility with earlier saves)
     type: {
       type: String,
       required: true,
@@ -51,6 +49,93 @@ const SectionSchema = new mongoose.Schema(
       default: 0,
       min: [0, "Time cannot be negative"],
       max: [86400, "Time must be less than 24 hours (86400 seconds)"],
+    },
+  },
+  { _id: false }
+);
+
+/** A group within a group-split section */
+const GroupSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [100, "Group name must be less than 100 characters"],
+    },
+    sections: [GroupSectionSchema],
+    totalYardage: {
+      type: Number,
+      default: 0,
+    },
+    totalTimeSeconds: {
+      type: Number,
+      default: 0,
+    },
+    clockTime: {
+      type: String,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
+/** A single section in a practice (swim, break, or group-split) */
+const SectionSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      required: true,
+      trim: true,
+      enum: ["swim", "break", "Break", "group-split"], // Added group-split
+      maxlength: [100, "Section type must be less than 100 characters"],
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [200, "Section title must be less than 200 characters"],
+    },
+    // Fields for swim/break sections
+    text: {
+      type: String,
+      default: "",
+      maxlength: [10000, "Section text must be less than 10000 characters"],
+    },
+    yardage: {
+      type: Number,
+      default: 0,
+      min: [0, "Yardage cannot be negative"],
+      max: [100000, "Yardage must be less than 100000"],
+    },
+    timeSeconds: {
+      type: Number,
+      default: 0,
+      min: [0, "Time cannot be negative"],
+      max: [86400, "Time must be less than 24 hours (86400 seconds)"],
+    },
+    clockTime: {
+      type: String,
+      trim: true,
+    },
+    // Fields for group-split sections
+    groups: [GroupSchema],
+    longestTimeSeconds: {
+      type: Number,
+      min: 0,
+    },
+    pacingGroup: {
+      type: String,
+      trim: true,
+    },
+    divergenceSeconds: {
+      type: Number,
+      min: 0,
+    },
+    // Sync info (for sections after splits)
+    syncInfo: {
+      syncedFrom: String,
+      groupsWaiting: [String],
     },
   },
   { _id: false }
@@ -103,7 +188,10 @@ const PracticeSchema = new mongoose.Schema(
       trim: true,
       maxlength: [300, "Title must be less than 300 characters"],
     },
-
+    startTime: {
+      type: String,
+      trim: true,
+    },
     sections: {
       type: [SectionSchema],
       validate: {
@@ -123,6 +211,19 @@ const PracticeSchema = new mongoose.Schema(
         type: Number,
         default: 0,
         min: [0, "Total time cannot be negative"],
+      },
+      // For practices with group splits
+      byGroup: {
+        type: Map,
+        of: new mongoose.Schema({
+          yardage: Number,
+          timeSeconds: Number,
+          actualSwimSeconds: Number,
+        }, { _id: false }),
+      },
+      overallTimeSeconds: {
+        type: Number,
+        min: 0,
       },
     },
     stats: {

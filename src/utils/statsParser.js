@@ -197,23 +197,83 @@ export function parseSwimTypeStats(content) {
  * @returns {object} - Aggregated stats { strokes: {}, styles: {} }
  */
 export function aggregatePracticeStats(sections, sectionYardages) {
-  const aggregated = { strokes: {}, styles: {} };
+  // Check if practice has group splits
+  const hasGroupSplits = sections.some(s => s.type === 'group-split');
 
-  sections.forEach((section, idx) => {
-    if (section.type !== 'swim' || !section.content) return;
+  if (!hasGroupSplits) {
+    // No groups - return single aggregated stats
+    const aggregated = { strokes: {}, styles: {} };
 
-    const sectionStats = parseSwimTypeStats(section.content);
+    sections.forEach((section, idx) => {
+      if (section.type === 'swim' && section.content) {
+        const sectionStats = parseSwimTypeStats(section.content);
 
-    // Aggregate strokes
-    for (const [stroke, yardage] of Object.entries(sectionStats.strokes || {})) {
-      aggregated.strokes[stroke] = (aggregated.strokes[stroke] || 0) + yardage;
-    }
+        for (const [stroke, yardage] of Object.entries(sectionStats.strokes || {})) {
+          aggregated.strokes[stroke] = (aggregated.strokes[stroke] || 0) + yardage;
+        }
 
-    // Aggregate styles
-    for (const [style, yardage] of Object.entries(sectionStats.styles || {})) {
-      aggregated.styles[style] = (aggregated.styles[style] || 0) + yardage;
+        for (const [style, yardage] of Object.entries(sectionStats.styles || {})) {
+          aggregated.styles[style] = (aggregated.styles[style] || 0) + yardage;
+        }
+      }
+    });
+
+    return aggregated;
+  }
+
+  // Has groups - return per-group stats
+  const groupStats = {}; // { groupName: { strokes: {}, styles: {}, totalYardage: 0, totalTime: 0 } }
+
+  // Get all group names
+  sections.forEach(section => {
+    if (section.type === 'group-split' && section.groups) {
+      section.groups.forEach(group => {
+        if (!groupStats[group.name]) {
+          groupStats[group.name] = {
+            strokes: {},
+            styles: {},
+            totalYardage: 0,
+            totalTime: 0
+          };
+        }
+      });
     }
   });
 
-  return aggregated;
+  // Aggregate stats per group
+  sections.forEach((section, idx) => {
+    if (section.type === 'swim' && section.content) {
+      // Shared section - add to all groups
+      const sectionStats = parseSwimTypeStats(section.content);
+
+      Object.keys(groupStats).forEach(groupName => {
+        for (const [stroke, yardage] of Object.entries(sectionStats.strokes || {})) {
+          groupStats[groupName].strokes[stroke] = (groupStats[groupName].strokes[stroke] || 0) + yardage;
+        }
+
+        for (const [style, yardage] of Object.entries(sectionStats.styles || {})) {
+          groupStats[groupName].styles[style] = (groupStats[groupName].styles[style] || 0) + yardage;
+        }
+      });
+    } else if (section.type === 'group-split' && section.groups) {
+      // Group split section - add to specific group only
+      section.groups.forEach(group => {
+        (group.sections || []).forEach(groupSection => {
+          if (groupSection.text) {
+            const sectionStats = parseSwimTypeStats(groupSection.text);
+
+            for (const [stroke, yardage] of Object.entries(sectionStats.strokes || {})) {
+              groupStats[group.name].strokes[stroke] = (groupStats[group.name].strokes[stroke] || 0) + yardage;
+            }
+
+            for (const [style, yardage] of Object.entries(sectionStats.styles || {})) {
+              groupStats[group.name].styles[style] = (groupStats[group.name].styles[style] || 0) + yardage;
+            }
+          }
+        });
+      });
+    }
+  });
+
+  return groupStats;
 }

@@ -18,6 +18,9 @@ import {
   formatYardage,
 } from "../utils/timeHelpers";
 import { aggregatePracticeStats, setAcronymsConfig } from "../utils/statsParser";
+import { calculateSectionTime, calculateSectionYardage } from "../utils/intervalParser";
+import { calculatePracticeClockTimes, hasGroupSplits } from "../utils/groupSyncCalculator";
+import GroupSplitSection from "../components/GroupSplitSection";
 
 import {
   DndContext,
@@ -206,12 +209,40 @@ function PracticeBuilder() {
 
     // Map practice sections to builder format
     if (incomingPractice.sections && Array.isArray(incomingPractice.sections)) {
-      const mappedSections = incomingPractice.sections.map((s, idx) => ({
-        id: String(idx + 1),
-        name: s.title || s.type || "Section",
-        type: s.type?.toLowerCase() === "break" ? "break" : "swim",
-        content: s.text || ""
-      }));
+      const mappedSections = incomingPractice.sections.map((s, idx) => {
+        const type = s.type?.toLowerCase();
+
+        // Handle group-split sections
+        if (type === "group-split") {
+          // Deep clone groups and ensure all IDs exist
+          const groups = (s.groups || []).map((group, gIdx) => ({
+            ...group,
+            id: group.id || `group-${Date.now()}-${gIdx}`,
+            sections: (group.sections || []).map((gs, gsIdx) => ({
+              ...gs,
+              id: gs.id || `section-${Date.now()}-${gIdx}-${gsIdx}`
+            }))
+          }));
+
+          return {
+            id: String(idx + 1),
+            name: s.title || "Group Split",
+            type: "group-split",
+            groups,
+            longestTimeSeconds: s.longestTimeSeconds || 0,
+            pacingGroup: s.pacingGroup || "",
+            divergenceSeconds: s.divergenceSeconds || 0
+          };
+        }
+
+        // Handle regular sections
+        return {
+          id: String(idx + 1),
+          name: s.title || s.type || "Section",
+          type: type === "break" ? "break" : "swim",
+          content: s.text || ""
+        };
+      });
       setSections(mappedSections);
     }
     // Start time will be set by the next useEffect when date/roster/config are ready
@@ -240,21 +271,106 @@ function PracticeBuilder() {
 
   // Live yardage & time (per section + totals)
   const sectionYardages = useMemo(
-    () => sections.map((s) => (s.type === "swim" ? parseYardage(s.content) : 0)),
+    () => sections.map((s) => {
+      if (s.type === "swim") return parseYardage(s.content);
+      if (s.type === "group-split" && s.groups) {
+        // For group splits, use the longest yardage among groups
+        return Math.max(...s.groups.map(g => g.totalYardage || 0), 0);
+      }
+      return 0;
+    }),
     [sections]
   );
   const sectionTimes = useMemo(
-    () => sections.map((s) => computeSectionTimeSeconds(s)),
+    () => sections.map((s) => {
+      if (s.type === "group-split" && s.longestTimeSeconds != null) {
+        return s.longestTimeSeconds;
+      }
+      return computeSectionTimeSeconds(s);
+    }),
     [sections]
   );
 
   const totalYardage = sectionYardages.reduce((sum, v) => sum + v, 0);
   const totalTimeSec = sectionTimes.reduce((sum, v) => sum + v, 0);
 
-  // Compute stats by swim type
+  // Check if practice has group splits
+  const hasGroupSplits = useMemo(() =>
+    sections.some(s => s.type === 'group-split'),
+    [sections]
+  );
+
+  // Compute stats by swim type (returns per-group stats if groups exist)
   const swimTypeStats = useMemo(() => {
     return aggregatePracticeStats(sections, sectionYardages);
   }, [sections, sectionYardages]);
+
+  // Calculate totals per group (for practices with group splits)
+  const groupTotals = useMemo(() => {
+    if (!hasGroupSplits) return null;
+
+    const totals = {};
+
+    // Initialize with group names from group-split sections
+    sections.forEach(section => {
+      if (section.type === 'group-split' && section.groups) {
+        section.groups.forEach(group => {
+          if (!totals[group.name]) {
+            totals[group.name] = { yardage: 0, timeSeconds: 0 };
+          }
+        });
+      }
+    });
+
+    // Add shared section totals to all groups
+    let preSplitYardage = 0;
+    let preSplitTime = 0;
+
+    sections.forEach((section, idx) => {
+      if (section.type === 'swim') {
+        const yardage = sectionYardages[idx] || 0;
+        const time = sectionTimes[idx] || 0;
+
+        if (Object.keys(totals).length > 0) {
+          // Groups initialized - add to all groups
+          Object.keys(totals).forEach(groupName => {
+            totals[groupName].yardage += yardage;
+            totals[groupName].timeSeconds += time;
+          });
+        } else {
+          // Before first split - track for later
+          preSplitYardage += yardage;
+          preSplitTime += time;
+        }
+      } else if (section.type === 'group-split' && section.groups) {
+        // Initialize groups with pre-split totals on first encounter
+        section.groups.forEach(group => {
+          if (totals[group.name].yardage === 0 && totals[group.name].timeSeconds === 0) {
+            totals[group.name].yardage = preSplitYardage;
+            totals[group.name].timeSeconds = preSplitTime;
+          }
+          // Add group-specific totals
+          totals[group.name].yardage += group.totalYardage || 0;
+          totals[group.name].timeSeconds += group.totalTimeSeconds || 0;
+        });
+      } else if (section.type === 'break') {
+        const time = sectionTimes[idx] || 0;
+        if (Object.keys(totals).length > 0) {
+          Object.keys(totals).forEach(groupName => {
+            totals[groupName].timeSeconds += time;
+          });
+        } else {
+          preSplitTime += time;
+        }
+      }
+    });
+
+    return totals;
+  }, [sections, sectionYardages, sectionTimes, hasGroupSplits]);
+
+  // Recalculate group clock times and totals when needed
+  // We'll do this on-demand in the save/export functions instead of in an effect
+  // to avoid infinite loops
 
   // Preview end clocks (rounded up to the next minute)
   const sectionEndClocks = useMemo(() => {
@@ -281,15 +397,32 @@ function PracticeBuilder() {
       const date = practiceDate;
       const poolValue = pool;
 
+      // Calculate clock times for group splits before saving
+      const sectionsWithClockTimes = hasGroupSplits(sections)
+        ? calculatePracticeClockTimes(sections, startTime).sections
+        : sections;
+
       if (editMode && incomingPractice?._id) {
         // Update existing practice
-        const sectionsForApi = sections.map((s, i) => ({
-          type: s.type === "break" ? "Break" : (s.name || "Section"),
-          title: s.type === "break" ? (s.name || "Break") : (s.name || "Section"),
-          text: s.content || "",
-          yardage: Number.isFinite(sectionYardages[i]) ? sectionYardages[i] : 0,
-          timeSeconds: Number.isFinite(sectionTimes[i]) ? sectionTimes[i] : 0,
-        }));
+        const sectionsForApi = sectionsWithClockTimes.map((s, i) => {
+          if (s.type === "group-split") {
+            return {
+              type: "group-split",
+              title: s.name || "Group Split",
+              groups: s.groups || [],
+              longestTimeSeconds: s.longestTimeSeconds,
+              pacingGroup: s.pacingGroup,
+              divergenceSeconds: s.divergenceSeconds,
+            };
+          }
+          return {
+            type: s.type === "break" ? "Break" : "swim",
+            title: s.name || (s.type === "break" ? "Break" : "Section"),
+            text: s.content || "",
+            yardage: Number.isFinite(sectionYardages[i]) ? sectionYardages[i] : 0,
+            timeSeconds: Number.isFinite(sectionTimes[i]) ? sectionTimes[i] : 0,
+          };
+        });
 
         await updatePractice(incomingPractice._id, {
           title,
@@ -314,13 +447,13 @@ function PracticeBuilder() {
           pool: poolValue,
           selectedRoster,
           season: seasonTitle,
-          sections,            // pass raw sections; helper will map them
+          sections: sectionsWithClockTimes, // pass sections with calculated clock times
           sectionYardages,
           sectionTimes,
           totalYardage,
           totalTimeSec,
           stats: swimTypeStats, // include computed stats
-          // startTime is not persisted in the practice model, so we omit it here
+          startTime, // include start time for group clock calculations
         });
 
         toast.success("Practice saved successfully!");
@@ -338,13 +471,30 @@ function PracticeBuilder() {
       const title = `Practice ${niceDate}${selectedRoster ? ` ${selectedRoster}` : ""}`;
       const poolValue = pool;
 
-      const sectionsForApi = sections.map((s, i) => ({
-        type: s.type === "break" ? "Break" : s.type,
-        title: s.name || (s.type === "break" ? "Break" : "Section"),
-        text: s.content || "",
-        yardage: sectionYardages[i] ?? 0,
-        timeSeconds: sectionTimes[i] ?? 0,
-      }));
+      // Calculate clock times for group splits before exporting
+      const sectionsWithClockTimes = hasGroupSplits(sections)
+        ? calculatePracticeClockTimes(sections, startTime).sections
+        : sections;
+
+      const sectionsForApi = sectionsWithClockTimes.map((s, i) => {
+        if (s.type === "group-split") {
+          return {
+            type: "group-split",
+            title: s.name || "Group Split",
+            groups: s.groups || [],
+            longestTimeSeconds: s.longestTimeSeconds,
+            pacingGroup: s.pacingGroup,
+            divergenceSeconds: s.divergenceSeconds,
+          };
+        }
+        return {
+          type: s.type === "break" ? "Break" : "swim",
+          title: s.name || (s.type === "break" ? "Break" : "Section"),
+          text: s.content || "",
+          yardage: sectionYardages[i] ?? 0,
+          timeSeconds: sectionTimes[i] ?? 0,
+        };
+      });
 
       const totals = { yardage: totalYardage, timeSeconds: totalTimeSec };
 
@@ -380,13 +530,30 @@ function PracticeBuilder() {
       const date = practiceDate;
       const poolValue = pool;
 
-      const sectionsForApi = sections.map((s, i) => ({
-        type: s.type === "break" ? "Break" : s.type,
-        title: s.name || (s.type === "break" ? "Break" : "Section"),
-        text: s.content || "",
-        yardage: sectionYardages[i] ?? 0,
-        timeSeconds: sectionTimes[i] ?? 0,
-      }));
+      // Calculate clock times for group splits
+      const sectionsWithClockTimes = hasGroupSplits(sections)
+        ? calculatePracticeClockTimes(sections, startTime).sections
+        : sections;
+
+      const sectionsForApi = sectionsWithClockTimes.map((s, i) => {
+        if (s.type === "group-split") {
+          return {
+            type: "group-split",
+            title: s.name || "Group Split",
+            groups: s.groups || [],
+            longestTimeSeconds: s.longestTimeSeconds,
+            pacingGroup: s.pacingGroup,
+            divergenceSeconds: s.divergenceSeconds,
+          };
+        }
+        return {
+          type: s.type === "break" ? "Break" : "swim",
+          title: s.name || (s.type === "break" ? "Break" : "Section"),
+          text: s.content || "",
+          yardage: sectionYardages[i] ?? 0,
+          timeSeconds: sectionTimes[i] ?? 0,
+        };
+      });
 
       const totals = { yardage: totalYardage, timeSeconds: totalTimeSec };
 
@@ -397,11 +564,13 @@ function PracticeBuilder() {
         pool: poolValue,
         selectedRoster,
         season: seasonTitle,
-        sections,
+        sections: sectionsWithClockTimes,
         sectionYardages,
         sectionTimes,
         totalYardage,
         totalTimeSec,
+        stats: swimTypeStats,
+        startTime,
       });
 
       // 2) EXPORT (use the already-mapped sectionsForApi and include startTime)
@@ -463,15 +632,196 @@ function PracticeBuilder() {
     const newId = Date.now().toString();
     setSections([...sections, { id: newId, name: "New Section", type: "swim", content: "" }]);
   };
+
   const addBreakSection = () => {
     const newId = Date.now().toString();
     setSections([...sections, { id: newId, name: "", type: "break", content: "" }]);
   };
+
+  const addGroupSplitSection = () => {
+    const newId = Date.now().toString();
+    // Prompt for initial group names
+    const group1Name = prompt('Enter first group name (e.g., Bronze):');
+    if (!group1Name) return;
+
+    const group2Name = prompt('Enter second group name (e.g., Silver):');
+    if (!group2Name) return;
+
+    const newSection = {
+      id: newId,
+      name: "Group Split",
+      type: "group-split",
+      title: "Group Split",
+      groups: [
+        {
+          id: `group-${Date.now()}-1`,
+          name: group1Name.trim(),
+          sections: [],
+          totalYardage: 0,
+          totalTimeSeconds: 0
+        },
+        {
+          id: `group-${Date.now()}-2`,
+          name: group2Name.trim(),
+          sections: [],
+          totalYardage: 0,
+          totalTimeSeconds: 0
+        }
+      ],
+      longestTimeSeconds: 0,
+      divergenceSeconds: 0
+    };
+
+    setSections([...sections, newSection]);
+  };
+
   const deleteSection = (id) => {
     setSections(sections.filter((section) => section.id !== id));
   };
+
   const updateSection = (id, field, value) => {
-    setSections(sections.map((section) => (section.id === id ? { ...section, [field]: value } : section)));
+    setSections(prevSections => prevSections.map((section) => {
+      if (section.id === id) {
+        // If updating groups, the value should already be deep cloned by the caller
+        // but we'll ensure we're creating a new section object
+        return { ...section, [field]: value };
+      }
+      return section;
+    }));
+  };
+
+  // Group-specific CRUD operations
+  const addGroupSection = (sectionId, groupId, newSection) => {
+    setSections(prevSections => prevSections.map(section => {
+      if (section.id === sectionId && section.type === 'group-split') {
+        const updatedGroups = section.groups.map(group => {
+          if (group.id === groupId) {
+            const updatedSections = [...(group.sections || []).map(s => ({ ...s })), newSection];
+
+            // Recalculate group totals
+            const totalYardage = updatedSections.reduce((sum, s) => sum + (s.yardage || 0), 0);
+            const totalTimeSeconds = updatedSections.reduce((sum, s) => sum + (s.timeSeconds || 0), 0);
+
+            return {
+              ...group,
+              sections: updatedSections,
+              totalYardage,
+              totalTimeSeconds
+            };
+          }
+          // Clone other groups and their sections
+          return {
+            ...group,
+            sections: (group.sections || []).map(s => ({ ...s }))
+          };
+        });
+
+        // Recalculate section-level totals
+        const longestTimeSeconds = Math.max(...updatedGroups.map(g => g.totalTimeSeconds || 0), 0);
+        const pacingGroup = updatedGroups.find(g => g.totalTimeSeconds === longestTimeSeconds)?.name || '';
+
+        return {
+          ...section,
+          groups: updatedGroups,
+          longestTimeSeconds,
+          pacingGroup
+        };
+      }
+      return section;
+    }));
+  };
+
+  const deleteGroupSection = (sectionId, groupId, groupSectionId) => {
+    setSections(prevSections => prevSections.map(section => {
+      if (section.id === sectionId && section.type === 'group-split') {
+        const updatedGroups = section.groups.map(group => {
+          if (group.id === groupId) {
+            const updatedSections = (group.sections || [])
+              .filter(s => s.id !== groupSectionId)
+              .map(s => ({ ...s }));
+
+            // Recalculate group totals
+            const totalYardage = updatedSections.reduce((sum, s) => sum + (s.yardage || 0), 0);
+            const totalTimeSeconds = updatedSections.reduce((sum, s) => sum + (s.timeSeconds || 0), 0);
+
+            return {
+              ...group,
+              sections: updatedSections,
+              totalYardage,
+              totalTimeSeconds
+            };
+          }
+          // Clone other groups and their sections
+          return {
+            ...group,
+            sections: (group.sections || []).map(s => ({ ...s }))
+          };
+        });
+
+        // Recalculate section-level totals
+        const longestTimeSeconds = Math.max(...updatedGroups.map(g => g.totalTimeSeconds || 0), 0);
+        const pacingGroup = updatedGroups.find(g => g.totalTimeSeconds === longestTimeSeconds)?.name || '';
+
+        return {
+          ...section,
+          groups: updatedGroups,
+          longestTimeSeconds,
+          pacingGroup
+        };
+      }
+      return section;
+    }));
+  };
+
+  const updateGroupSection = (sectionId, groupId, groupSectionId, field, value) => {
+    setSections(prevSections => prevSections.map(section => {
+      if (section.id === sectionId && section.type === 'group-split') {
+        const updatedGroups = section.groups.map(group => {
+          if (group.id === groupId) {
+            const updatedSections = (group.sections || []).map(s => {
+              if (s.id === groupSectionId) {
+                const updated = { ...s, [field]: value };
+                // Recalculate yardage and time when text changes
+                if (field === 'text') {
+                  updated.yardage = calculateSectionYardage(value);
+                  updated.timeSeconds = calculateSectionTime(value);
+                }
+                return updated;
+              }
+              return { ...s }; // Clone other sections
+            });
+
+            // Recalculate group totals
+            const totalYardage = updatedSections.reduce((sum, s) => sum + (s.yardage || 0), 0);
+            const totalTimeSeconds = updatedSections.reduce((sum, s) => sum + (s.timeSeconds || 0), 0);
+
+            return {
+              ...group,
+              sections: updatedSections,
+              totalYardage,
+              totalTimeSeconds
+            };
+          }
+          // Clone other groups and their sections
+          return {
+            ...group,
+            sections: (group.sections || []).map(s => ({ ...s }))
+          };
+        });
+
+        // Recalculate section-level totals (longest time among groups)
+        const longestTimeSeconds = Math.max(...updatedGroups.map(g => g.totalTimeSeconds || 0), 0);
+        const pacingGroup = updatedGroups.find(g => g.totalTimeSeconds === longestTimeSeconds)?.name || '';
+
+        return {
+          ...section,
+          groups: updatedGroups,
+          longestTimeSeconds,
+          pacingGroup
+        };
+      }
+      return section;
+    }));
   };
 
   return (
@@ -549,14 +899,27 @@ function PracticeBuilder() {
             >
               <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                 {sections.map((section, idx) => (
-                  <SortableSection
-                    key={section.id}
-                    section={section}
-                    onChange={updateSection}
-                    onDelete={deleteSection}
-                    yardage={sectionYardages[idx]}
-                    timeSec={sectionTimes[idx]}
-                  />
+                  section.type === 'group-split' ? (
+                    <GroupSplitSection
+                      key={section.id}
+                      section={section}
+                      index={idx}
+                      onUpdate={updateSection}
+                      onDelete={deleteSection}
+                      onAddGroupSection={addGroupSection}
+                      onDeleteGroupSection={deleteGroupSection}
+                      onUpdateGroupSection={updateGroupSection}
+                    />
+                  ) : (
+                    <SortableSection
+                      key={section.id}
+                      section={section}
+                      onChange={updateSection}
+                      onDelete={deleteSection}
+                      yardage={sectionYardages[idx]}
+                      timeSec={sectionTimes[idx]}
+                    />
+                  )
                 ))}
               </SortableContext>
             </DndContext>
@@ -566,6 +929,7 @@ function PracticeBuilder() {
               <div className="add-buttons">
                 <button className="add-btn" onClick={addSwimSection}>+ Add Section</button>
                 <button className="add-btn light" onClick={addBreakSection}>+ Add Break</button>
+                <button className="add-btn" onClick={addGroupSplitSection}>+ Add Group Split</button>
               </div>
               <div className="actions">
                 <button className="preview-btn" onClick={onSave}>💾 Save Practice</button>
@@ -601,82 +965,179 @@ function PracticeBuilder() {
               <div className="stats-panel">
                 <h2 className="stats-title">Practice Statistics</h2>
 
-                <div className="stats-summary">
-                  <div className="stat-item">
-                    <span className="stat-label">Total Yardage:</span>
-                    <span className="stat-value">{formatYardage(totalYardage)}m</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-label">Total Time:</span>
-                    <span className="stat-value">{formatSeconds(totalTimeSec)}</span>
-                  </div>
-                </div>
+                {!groupTotals ? (
+                  // No groups - show single stats
+                  <>
+                    <div className="stats-summary">
+                      <div className="stat-item">
+                        <span className="stat-label">Total Yardage:</span>
+                        <span className="stat-value">{formatYardage(totalYardage)}m</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">Total Time:</span>
+                        <span className="stat-value">{formatSeconds(totalTimeSec)}</span>
+                      </div>
+                    </div>
 
-                <h3 className="stats-subtitle">Breakdown by Strokes</h3>
-                <div className="stats-breakdown">
-                  {Object.keys(swimTypeStats.strokes || {}).length === 0 ? (
-                    <p className="stats-empty">No stroke data to analyze</p>
-                  ) : (
-                    <table className="stats-table">
-                      <thead>
-                        <tr>
-                          <th>Stroke</th>
-                          <th>Yardage</th>
-                          <th>% of Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(swimTypeStats.strokes || {})
-                          .sort((a, b) => b[1] - a[1])
-                          .map(([stroke, yardage]) => {
-                            const percentage = totalYardage > 0
-                              ? ((yardage / totalYardage) * 100).toFixed(1)
-                              : 0;
-                            return (
-                              <tr key={stroke}>
-                                <td className="stat-type">{stroke}</td>
-                                <td className="stat-yardage">{formatYardage(yardage)}m</td>
-                                <td className="stat-percentage">{percentage}%</td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
+                    <h3 className="stats-subtitle">Breakdown by Strokes</h3>
+                    <div className="stats-breakdown">
+                      {Object.keys(swimTypeStats.strokes || {}).length === 0 ? (
+                        <p className="stats-empty">No stroke data to analyze</p>
+                      ) : (
+                        <table className="stats-table">
+                          <thead>
+                            <tr>
+                              <th>Stroke</th>
+                              <th>Yardage</th>
+                              <th>% of Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(swimTypeStats.strokes || {})
+                              .sort((a, b) => b[1] - a[1])
+                              .map(([stroke, yardage]) => {
+                                const percentage = totalYardage > 0
+                                  ? ((yardage / totalYardage) * 100).toFixed(1)
+                                  : 0;
+                                return (
+                                  <tr key={stroke}>
+                                    <td className="stat-type">{stroke}</td>
+                                    <td className="stat-yardage">{formatYardage(yardage)}m</td>
+                                    <td className="stat-percentage">{percentage}%</td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
 
-                <h3 className="stats-subtitle" style={{ marginTop: 'var(--space-md)' }}>Breakdown by Styles</h3>
-                <div className="stats-breakdown">
-                  {Object.keys(swimTypeStats.styles || {}).length === 0 ? (
-                    <p className="stats-empty">No style data to analyze</p>
-                  ) : (
-                    <table className="stats-table">
-                      <thead>
-                        <tr>
-                          <th>Style</th>
-                          <th>Yardage</th>
-                          <th>% of Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(swimTypeStats.styles || {})
-                          .sort((a, b) => b[1] - a[1])
-                          .map(([style, yardage]) => {
-                            const percentage = totalYardage > 0
-                              ? ((yardage / totalYardage) * 100).toFixed(1)
-                              : 0;
-                            return (
-                              <tr key={style}>
-                                <td className="stat-type">{style}</td>
-                                <td className="stat-yardage">{formatYardage(yardage)}m</td>
-                                <td className="stat-percentage">{percentage}%</td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
+                    <h3 className="stats-subtitle" style={{ marginTop: 'var(--space-md)' }}>Breakdown by Styles</h3>
+                    <div className="stats-breakdown">
+                      {Object.keys(swimTypeStats.styles || {}).length === 0 ? (
+                        <p className="stats-empty">No style data to analyze</p>
+                      ) : (
+                        <table className="stats-table">
+                          <thead>
+                            <tr>
+                              <th>Style</th>
+                              <th>Yardage</th>
+                              <th>% of Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(swimTypeStats.styles || {})
+                              .sort((a, b) => b[1] - a[1])
+                              .map(([style, yardage]) => {
+                                const percentage = totalYardage > 0
+                                  ? ((yardage / totalYardage) * 100).toFixed(1)
+                                  : 0;
+                                return (
+                                  <tr key={style}>
+                                    <td className="stat-type">{style}</td>
+                                    <td className="stat-yardage">{formatYardage(yardage)}m</td>
+                                    <td className="stat-percentage">{percentage}%</td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  // Has groups - show per-group stats
+                  Object.entries(groupTotals).map(([groupName, totals]) => {
+                    const groupStats = swimTypeStats[groupName] || { strokes: {}, styles: {} };
+                    const groupYardage = totals.yardage;
+                    const groupTime = totals.timeSeconds;
+
+                    return (
+                      <div key={groupName} style={{ marginBottom: 'var(--space-xl)' }}>
+                        <h3 className="stats-subtitle" style={{ color: 'var(--primary)', fontSize: '1.25rem' }}>
+                          {groupName}
+                        </h3>
+
+                        <div className="stats-summary">
+                          <div className="stat-item">
+                            <span className="stat-label">Total Yardage:</span>
+                            <span className="stat-value">{formatYardage(groupYardage)}m</span>
+                          </div>
+                          <div className="stat-item">
+                            <span className="stat-label">Total Time:</span>
+                            <span className="stat-value">{formatSeconds(groupTime)}</span>
+                          </div>
+                        </div>
+
+                        <h4 className="stats-subtitle" style={{ fontSize: '1rem', marginTop: 'var(--space-sm)' }}>Breakdown by Strokes</h4>
+                        <div className="stats-breakdown">
+                          {Object.keys(groupStats.strokes || {}).length === 0 ? (
+                            <p className="stats-empty">No stroke data</p>
+                          ) : (
+                            <table className="stats-table">
+                              <thead>
+                                <tr>
+                                  <th>Stroke</th>
+                                  <th>Yardage</th>
+                                  <th>% of Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Object.entries(groupStats.strokes || {})
+                                  .sort((a, b) => b[1] - a[1])
+                                  .map(([stroke, yardage]) => {
+                                    const percentage = groupYardage > 0
+                                      ? ((yardage / groupYardage) * 100).toFixed(1)
+                                      : 0;
+                                    return (
+                                      <tr key={stroke}>
+                                        <td className="stat-type">{stroke}</td>
+                                        <td className="stat-yardage">{formatYardage(yardage)}m</td>
+                                        <td className="stat-percentage">{percentage}%</td>
+                                      </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+
+                        <h4 className="stats-subtitle" style={{ fontSize: '1rem', marginTop: 'var(--space-sm)' }}>Breakdown by Styles</h4>
+                        <div className="stats-breakdown">
+                          {Object.keys(groupStats.styles || {}).length === 0 ? (
+                            <p className="stats-empty">No style data</p>
+                          ) : (
+                            <table className="stats-table">
+                              <thead>
+                                <tr>
+                                  <th>Style</th>
+                                  <th>Yardage</th>
+                                  <th>% of Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Object.entries(groupStats.styles || {})
+                                  .sort((a, b) => b[1] - a[1])
+                                  .map(([style, yardage]) => {
+                                    const percentage = groupYardage > 0
+                                      ? ((yardage / groupYardage) * 100).toFixed(1)
+                                      : 0;
+                                    return (
+                                      <tr key={style}>
+                                        <td className="stat-type">{style}</td>
+                                        <td className="stat-yardage">{formatYardage(yardage)}m</td>
+                                        <td className="stat-percentage">{percentage}%</td>
+                                      </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             )}
 
@@ -688,6 +1149,33 @@ function PracticeBuilder() {
                     <div key={section.id} className="preview-break">
                       {section.name || "Break"}
                       {section.content ? ` @ ${section.content}` : ""}
+                    </div>
+                  ) : section.type === "group-split" ? (
+                    <div key={section.id} className="preview-section group-split-preview">
+                      <div className="preview-title-row">
+                        <div className="preview-title-left">
+                          <strong>{section.name || section.title || "Group Split"}</strong>
+                        </div>
+                      </div>
+                      <div className="group-split-preview-content">
+                        {(section.groups || []).map(group => (
+                          <div key={group.id} className="group-preview">
+                            <div className="group-preview-header">
+                              <strong>{group.name}</strong>
+                              {section.pacingGroup === group.name && <span> 🏃</span>}
+                            </div>
+                            {(group.sections || []).map((groupSection, idx) => (
+                              <div key={idx} className="preview-line">
+                                {groupSection.text || ''}
+                              </div>
+                            ))}
+                            <div className="group-preview-totals">
+                              {group.totalYardage}m • {formatSeconds(group.totalTimeSeconds || 0)}
+                              {group.clockTime && ` → ${group.clockTime}`}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div key={section.id} className="preview-section">

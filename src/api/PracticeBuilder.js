@@ -5,20 +5,33 @@ import { createPractice, listPractices } from "./practices";
 /**
  * Map builder UI sections -> API shape
  * Expects:
- *   sections: [{ id, name, type: 'swim'|'break', content }]
+ *   sections: [{ id, name, type: 'swim'|'break'|'group-split', content, groups }]
  *   sectionYardages: number[]   // same order as sections
  *   sectionTimes: number[]      // same order as sections
  */
 export function mapSectionsForApi(sections = [], sectionYardages = [], sectionTimes = []) {
-  return sections.map((s, i) => ({
-    // For swim sections, use the section name as both type/title.
-    // For breaks, type becomes "Break" and title is "Break" (or name if provided).
-    type: s.type === "break" ? "Break" : (s.name || "Section"),
-    title: s.type === "break" ? (s.name || "Break") : (s.name || "Section"),
-    text: s.content || "",
-    yardage: Number.isFinite(sectionYardages[i]) ? sectionYardages[i] : 0,
-    timeSeconds: Number.isFinite(sectionTimes[i]) ? sectionTimes[i] : 0,
-  }));
+  return sections.map((s, i) => {
+    // Handle group-split sections
+    if (s.type === "group-split") {
+      return {
+        type: "group-split",
+        title: s.name || "Group Split",
+        groups: s.groups || [],
+        longestTimeSeconds: s.longestTimeSeconds,
+        pacingGroup: s.pacingGroup,
+        divergenceSeconds: s.divergenceSeconds,
+      };
+    }
+
+    // Handle swim/break sections
+    return {
+      type: s.type === "break" ? "Break" : "swim",
+      title: s.name || (s.type === "break" ? "Break" : "Section"),
+      text: s.content || "",
+      yardage: Number.isFinite(sectionYardages[i]) ? sectionYardages[i] : 0,
+      timeSeconds: Number.isFinite(sectionTimes[i]) ? sectionTimes[i] : 0,
+    };
+  });
 }
 
 /**
@@ -42,7 +55,7 @@ export async function handleSavePractice({
   totalYardage = 0,
   totalTimeSec = 0,
   stats = null,           // Stats object { strokes: {}, styles: {} }
-  userId = "kyle",        // optional; your server also defaults this
+  startTime = "06:00",    // Start time for clock calculations
 }) {
   const title = practiceTitle?.trim() || `Practice ${practiceDate || ""}`.trim();
 
@@ -65,6 +78,7 @@ export async function handleSavePractice({
       sections: sectionsForApi,
       totals,
       stats: stats || undefined, // Include stats if provided
+      startTime, // Include start time
     },
     // optional per-request headers if your client doesn't inject them globally:
     // { "x-user-id": userId }

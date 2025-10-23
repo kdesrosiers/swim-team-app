@@ -86,7 +86,7 @@
 /* ========== Two-Column Layout ========== */
 .builder-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr;
   gap: var(--space-xl);
   margin-top: var(--space-xl);
 }
@@ -428,6 +428,37 @@
   background: var(--gray-100);
   border-radius: var(--radius-md);
   border-left: 4px solid var(--warning);
+}
+
+.group-split-preview-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.group-preview {
+  padding: var(--space-md);
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.group-preview-header {
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: 2px solid var(--border);
+}
+
+.group-preview-totals {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .preview-total-row {
