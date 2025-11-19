@@ -97,28 +97,110 @@ export function extractYardage(line) {
 
 /**
  * Expand curly brace blocks like "2 x { 100 @ 2:00, 50 @ 1:00 }"
+ * Also handles indentation-based blocks where indented lines follow a multiplier
  * @param {string} text - Text with potential nested blocks
  * @returns {string} - Expanded text
  */
 export function expandBlocks(text) {
+  if (!text) return '';
+
+  // First handle curly brace blocks
   let out = text;
-  const pattern = /(\d+)\s*[xX×]\s*{([^{}]*)}/gs;
+  const bracePattern = /(\d+)\s*[xX×]\s*{([^{}]*)}/gs;
 
   let iterations = 0;
   const maxIterations = 10; // Prevent infinite loops
 
-  while (pattern.test(out) && iterations < maxIterations) {
-    out = out.replace(pattern, (_, n, inner) => {
+  while (bracePattern.test(out) && iterations < maxIterations) {
+    out = out.replace(bracePattern, (_, n, inner) => {
       const times = parseInt(n, 10);
       if (!Number.isFinite(times) || times <= 0) return inner;
       const block = inner.trim();
       return Array(times).fill(block).join("\n");
     });
-    pattern.lastIndex = 0; // Reset regex
+    bracePattern.lastIndex = 0; // Reset regex
     iterations++;
   }
 
-  return out;
+  // Now handle indentation-based blocks
+  const lines = out.split('\n');
+  const result = [];
+  let i = 0;
+
+  console.log('Processing indentation, lines:', lines);
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    console.log(`Line ${i}: "${line}" (trimmed: "${trimmed}")`);
+
+    // Check if this line is a multiplier without opening brace (e.g., "2 x " or "2 x")
+    const multiplierMatch = trimmed.match(/^(\d+)\s*[xX×]\s*$/);
+
+    if (multiplierMatch) {
+      console.log(`Found multiplier at line ${i}:`, multiplierMatch[1]);
+      const times = parseInt(multiplierMatch[1], 10);
+      const indentedLines = [];
+
+      // Get the indentation level of the current line
+      const baseIndent = line.match(/^(\s*)/)[1].length;
+      console.log(`Base indent: ${baseIndent}`);
+
+      // Collect all following lines that are indented more than the multiplier line
+      let j = i + 1;
+      while (j < lines.length) {
+        const nextLine = lines[j];
+        const nextTrimmed = nextLine.trim();
+
+        // Skip empty lines
+        if (!nextTrimmed) {
+          console.log(`Skipping empty line at ${j}`);
+          j++;
+          continue;
+        }
+
+        // Get indentation of the next line
+        const nextIndent = nextLine.match(/^(\s*)/)[1].length;
+        console.log(`Line ${j} indent: ${nextIndent} (base: ${baseIndent})`);
+
+        // If this line is indented more than the multiplier line, it's part of the block
+        if (nextIndent > baseIndent) {
+          console.log(`Adding to block: "${nextTrimmed}"`);
+          indentedLines.push(nextTrimmed); // Use trimmed version for consistent parsing
+          j++;
+        } else {
+          // Stop when we hit a line with equal or less indentation
+          console.log(`Breaking at line ${j} - not indented enough`);
+          break;
+        }
+      }
+
+      // If we found indented lines, expand them
+      if (indentedLines.length > 0 && Number.isFinite(times) && times > 0) {
+        console.log(`Expanding ${indentedLines.length} lines ${times} times`);
+        for (let t = 0; t < times; t++) {
+          result.push(...indentedLines);
+        }
+        i = j; // Skip past the indented block
+      } else {
+        console.log(`No indented lines found for multiplier`);
+        // No indented lines found, just add the multiplier line as-is
+        result.push(line);
+        i++;
+      }
+    } else {
+      // Regular line, add as-is
+      result.push(line);
+      i++;
+    }
+  }
+
+  console.log('Expanded result:', result);
+  const finalResult = result.join('\n');
+  console.log('Final expanded text:', JSON.stringify(finalResult));
+
+  return finalResult;
 }
 
 /**
@@ -127,10 +209,12 @@ export function expandBlocks(text) {
  * @returns {number} - Total time in seconds
  */
 export function calculateSectionTime(text) {
+  console.log('calculateSectionTime called with:', JSON.stringify(text));
   if (!text || typeof text !== 'string') return 0;
 
   // First expand any curly brace blocks
   const expanded = expandBlocks(text);
+  console.log('Expanded text:', JSON.stringify(expanded));
 
   let totalSeconds = 0;
   const lines = expanded.split('\n');
@@ -144,6 +228,7 @@ export function calculateSectionTime(text) {
 
     const reps = extractReps(trimmed);
     const interval = extractInterval(trimmed);
+    console.log(`Line "${trimmed}": reps=${reps}, interval=${interval}sec`);
 
     if (interval > 0) {
       totalSeconds += reps * interval;
@@ -157,6 +242,7 @@ export function calculateSectionTime(text) {
     }
   }
 
+  console.log('Total seconds:', totalSeconds);
   return totalSeconds;
 }
 

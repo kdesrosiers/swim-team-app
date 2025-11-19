@@ -23,12 +23,20 @@ console.log("DEV_USER_ID =", DEV_USER_ID || "(using server default)");
 
 
 export function authHeaders(extra = {}) {
-  return {
+  const headers = {
     "Content-Type": "application/json",
     ...(DEV_USER_ID ? { "x-user-id": DEV_USER_ID } : {}),
     ...(ADMIN_KEY ? { "x-admin-key": ADMIN_KEY } : {}),
     ...extra,
   };
+
+  // Add JWT token if available
+  const token = localStorage.getItem("token");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return headers;
 }
 
 async function handle(res) {

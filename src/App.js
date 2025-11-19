@@ -9,6 +9,8 @@ import PracticeLibrary from './pages/PracticeLibrary';
 import ConfigHub from './pages/ConfigHub';
 import ConfigMaintenance from './pages/ConfigMaintenance';
 import SeasonsMaintenance from './pages/SeasonsMaintenance';
+import FeedbackManagement from './pages/FeedbackManagement';
+import SwimmerRoster from './pages/SwimmerRoster';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import NotFound from './pages/NotFound';
@@ -53,6 +55,8 @@ function App() {
               <Route index element={<Home />} />
               <Route path="builder" element={<PracticeBuilder />} />
               <Route path="practices" element={<PracticeLibrary />} />
+              <Route path="swimmers" element={<SwimmerRoster />} />
+              <Route path="feedback" element={<FeedbackManagement />} />
               <Route path="config" element={<ConfigHub />} />
               <Route path="config/rosters" element={<ConfigMaintenance />} />
               <Route path="config/seasons" element={<SeasonsMaintenance />} />

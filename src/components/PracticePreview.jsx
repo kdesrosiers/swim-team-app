@@ -129,8 +129,8 @@ export default function PracticePreview({ practice, startTime = "06:00" }) {
                                         {(group.sections || []).map((gs, gsi) => (
                                             <div key={gs.id || gsi}>
                                                 {(gs.text || "").split("\n").map((line, li) => (
-                                                    <div key={li} className="preview-line">
-                                                        {line.trim() === "" ? <br /> : line}
+                                                    <div key={li} className="preview-line" style={{ whiteSpace: 'pre-wrap' }}>
+                                                        {line === "" ? <br /> : line}
                                                     </div>
                                                 ))}
                                             </div>
@@ -156,8 +156,8 @@ export default function PracticePreview({ practice, startTime = "06:00" }) {
                             </div>
                         </div>
                         {(s.text || s.content || "").split("\n").map((line, li) => (
-                            <div key={li} className="preview-line">
-                                {line.trim() === "" ? <br /> : line}
+                            <div key={li} className="preview-line" style={{ whiteSpace: 'pre-wrap' }}>
+                                {line === "" ? <br /> : line}
                             </div>
                         ))}
                     </div>

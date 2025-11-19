@@ -24,4 +24,7 @@ export function deletePractice(id) {
   return del(`/api/practices/${id}`);
 }
 
+export function toggleFavorite(id) {
+  return put(`/api/practices/${id}/favorite`, {});
+}
 

@@ -10,6 +10,7 @@ export default function Register() {
     lastName: "",
     email: "",
     phone: "",
+    address: "",
     username: "",
     password: "",
     confirmPassword: "",
@@ -53,6 +54,11 @@ export default function Register() {
       // Add phone if provided
       if (formData.phone) {
         requestBody.phone = formData.phone;
+      }
+
+      // Add address if provided
+      if (formData.address) {
+        requestBody.address = formData.address;
       }
 
       // Add swim team if provided
@@ -158,6 +164,19 @@ export default function Register() {
                   autoComplete="tel"
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="address">Address</label>
+              <input
+                type="text"
+                id="address"
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                placeholder="e.g., 123 Main St, Anytown, ST 12345"
+                autoComplete="street-address"
+              />
             </div>
 
             <div className="form-group">

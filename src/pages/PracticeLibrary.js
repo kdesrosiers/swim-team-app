@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { listPractices } from "../api/practices";
+import toast from "react-hot-toast";
+import { listPractices, toggleFavorite } from "../api/practices";
 import { getConfig } from "../api/config";
 import { getSeasons } from "../api/seasons";
 import PracticePreview from "../components/PracticePreview";
+import NotesEditor from "../components/NotesEditor";
 import "./PracticeLibrary.css";
 
 const FALLBACK_ROSTERS = ["Gold/Platinum", "Gold", "Platinum", "Silver", "Bronze", "White", "Blue", "Yellow"];
@@ -29,6 +31,7 @@ export default function PracticeLibrary() {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
   const [startTime, setStartTime] = useState("06:00");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Load config and seasons once
   useEffect(() => {
@@ -80,13 +83,20 @@ export default function PracticeLibrary() {
         params.season = selectedSeason;
       }
       const res = await listPractices(params);
-      setRows(res.items || []);
-      setTotal(res.total || 0);
+
+      // Filter by favorites on client side if checkbox is checked
+      let filteredItems = res.items || [];
+      if (showFavoritesOnly) {
+        filteredItems = filteredItems.filter(item => item.isFavorite);
+      }
+
+      setRows(filteredItems);
+      setTotal(showFavoritesOnly ? filteredItems.length : res.total || 0);
       setPage(res.page || 1);
 
-      if (!selected && res.items?.length) setSelected(res.items[0]);
-      if (selected && !res.items?.some(i => i._id === selected._id)) {
-        setSelected(res.items[0] || null);
+      if (!selected && filteredItems?.length) setSelected(filteredItems[0]);
+      if (selected && !filteredItems?.some(i => i._id === selected._id)) {
+        setSelected(filteredItems[0] || null);
       }
     } finally {
       setLoading(false);
@@ -94,7 +104,7 @@ export default function PracticeLibrary() {
   }
 
   // Reload on roster or season change
-  useEffect(() => { if (roster) refresh(1); /* eslint-disable-next-line */ }, [roster, selectedSeason]);
+  useEffect(() => { if (roster) refresh(1); /* eslint-disable-next-line */ }, [roster, selectedSeason, showFavoritesOnly]);
 
   // Debounced search
   useEffect(() => {
@@ -125,6 +135,40 @@ export default function PracticeLibrary() {
         practice: { ...selected, date: today }
       }
     });
+  }
+
+  function handleNotesUpdate(updatedPractice) {
+    // Update the selected practice when notes are saved
+    setSelected(updatedPractice);
+
+    // Update in the practice list
+    setRows(prevRows =>
+      prevRows.map(p => p._id === updatedPractice._id ? updatedPractice : p)
+    );
+  }
+
+  async function handleToggleFavorite(e, practiceId) {
+    e.stopPropagation();
+    try {
+      const result = await toggleFavorite(practiceId);
+
+      // Update the selected practice
+      if (selected && selected._id === practiceId) {
+        setSelected({ ...selected, isFavorite: result.isFavorite });
+      }
+
+      // Update in the practice list
+      setRows(prevRows =>
+        prevRows.map(p =>
+          p._id === practiceId ? { ...p, isFavorite: result.isFavorite } : p
+        )
+      );
+
+      toast.success(result.isFavorite ? "Added to favorites" : "Removed from favorites");
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      toast.error("Failed to update favorite");
+    }
   }
 
   return (
@@ -173,6 +217,19 @@ export default function PracticeLibrary() {
                 placeholder="keyword..."
               />
             </div>
+            <div className="practice-list-filter">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showFavoritesOnly}
+                  onChange={(e) => {
+                    setShowFavoritesOnly(e.target.checked);
+                    setPage(1);
+                  }}
+                />
+                <span>Favorites Only</span>
+              </label>
+            </div>
           </div>
 
           <div className="practice-list-content">
@@ -184,8 +241,17 @@ export default function PracticeLibrary() {
                 className={`practice-card ${selected?._id === p._id ? 'active' : ''}`}
                 onClick={() => setSelected(p)}
               >
-                <div className="practice-card-title">
-                  {p.title || `Practice ${p.date}`}
+                <div className="practice-card-header">
+                  <div className="practice-card-title">
+                    {p.title || `Practice ${p.date}`}
+                  </div>
+                  <button
+                    className={`practice-card-favorite ${p.isFavorite ? 'active' : ''}`}
+                    onClick={(e) => handleToggleFavorite(e, p._id)}
+                    title={p.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    {p.isFavorite ? '★' : '☆'}
+                  </button>
                 </div>
                 <div className="practice-card-meta">
                   <span>{p.date}</span>
@@ -228,20 +294,6 @@ export default function PracticeLibrary() {
 
       {/* Main Content Area */}
       <div className="practice-main-content">
-        {/* Top Header Bar */}
-        <div className="practice-header-bar">
-          <div className="practice-header-left">
-            <span className="practice-header-title">📚 Practice Library</span>
-            {roster && <span className="practice-header-roster">• {roster}</span>}
-          </div>
-          <div className="practice-header-right">
-            <label className="pair">
-              <span>Start:</span>
-              <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} step={60} />
-            </label>
-          </div>
-        </div>
-
         {/* Practice Preview (Main Focus) */}
         <div className="practice-preview-area">
           {selected && (
@@ -256,7 +308,10 @@ export default function PracticeLibrary() {
           )}
           <div className="practice-preview-card">
             {selected ? (
-              <PracticePreview practice={selected} startTime={startTime} />
+              <>
+                <PracticePreview practice={selected} startTime={startTime} />
+                <NotesEditor practice={selected} onUpdate={handleNotesUpdate} />
+              </>
             ) : rows.length === 0 && !loading && roster ? (
               <div className="practice-empty-state">
                 <div className="practice-empty-icon">📋</div>

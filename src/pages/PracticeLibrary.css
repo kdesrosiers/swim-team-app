@@ -116,21 +116,37 @@
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: pointer;
+}
+
+.practice-list-filter label span {
+  color: var(--text-secondary);
 }
 
 .practice-list-filter select,
-.practice-list-filter input {
+.practice-list-filter input[type="text"] {
   width: 100%;
-  font-size: 0.875rem;
-  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.9375rem;
+  padding: var(--space-sm) var(--space-md);
   border: 2px solid var(--border);
   border-radius: var(--radius-md);
   transition: border-color 0.2s;
   background: white;
+  color: var(--text);
+}
+
+.practice-list-filter input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary);
 }
 
 .practice-list-filter select:focus,
-.practice-list-filter input:focus {
+.practice-list-filter input[type="text"]:focus {
   outline: none;
   border-color: var(--primary);
 }
@@ -171,12 +187,42 @@
   box-shadow: var(--shadow-md);
 }
 
+.practice-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
 .practice-card-title {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: var(--space-xs);
   line-height: 1.4;
+  flex: 1;
+}
+
+.practice-card-favorite {
+  appearance: none;
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.practice-card-favorite:hover {
+  color: var(--accent);
+  transform: scale(1.2);
+}
+
+.practice-card-favorite.active {
+  color: var(--accent);
 }
 
 .practice-card-meta {
@@ -287,6 +333,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  padding-bottom: 200px;
 }
 
 .practice-actions {
@@ -333,12 +380,7 @@
 }
 
 .practice-preview-card {
-  background: white;
-  border-radius: var(--radius-xl);
   padding: var(--space-2xl);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
-  margin: var(--space-xl);
   min-height: calc(100% - var(--space-2xl) * 2);
 }
 

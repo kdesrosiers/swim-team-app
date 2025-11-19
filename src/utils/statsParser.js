@@ -61,10 +61,14 @@ function parseLine(line) {
     const dist = parseInt(repMatch[2], 10);
     yardage = reps * dist;
   } else {
-    // Match format like: 100 Free or 200 IM
-    const singleMatch = trimmed.match(/^(\d+)\s*/);
-    if (singleMatch) {
-      yardage = parseInt(singleMatch[1], 10);
+    // Don't count lines that are just multipliers (e.g., "2 x" without a value)
+    const justMultiplier = trimmed.match(/^(\d+)\s*[xX]\s*$/);
+    if (!justMultiplier) {
+      // Match format like: 100 Free or 200 IM
+      const singleMatch = trimmed.match(/^(\d+)\s*/);
+      if (singleMatch) {
+        yardage = parseInt(singleMatch[1], 10);
+      }
     }
   }
 
@@ -135,16 +139,17 @@ function parseLine(line) {
 }
 
 /**
- * Expand blocks like "2 x { 100 Free, 100 Back }"
+ * Expand blocks like "2 x { 100 Free, 100 Back }" and indentation-based blocks
  * @param {string} text - Text with potential nested blocks
  * @returns {string} - Expanded text
  */
 function expandBlocks(text) {
   let out = text;
-  const pattern = /(\d+)\s*[xX]\s*{([^{}]*)}/s;
+  const bracePattern = /(\d+)\s*[xX]\s*{([^{}]*)}/s;
 
-  while (pattern.test(out)) {
-    out = out.replace(pattern, (_, n, inner) => {
+  // Handle curly brace blocks first
+  while (bracePattern.test(out)) {
+    out = out.replace(bracePattern, (_, n, inner) => {
       const times = parseInt(n, 10);
       if (!Number.isFinite(times) || times <= 0) return inner;
       const block = inner.trim();
@@ -152,7 +157,71 @@ function expandBlocks(text) {
     });
   }
 
-  return out;
+  // Now handle indentation-based blocks (same as yardageParser)
+  const lines = out.split('\n');
+  const result = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Check if this line is a multiplier without opening brace
+    const multiplierMatch = trimmed.match(/^(\d+)\s*[xX×]\s*$/);
+
+    if (multiplierMatch) {
+      const times = parseInt(multiplierMatch[1], 10);
+      const indentedLines = [];
+
+      // Get the indentation level of the current line
+      const baseIndent = line.match(/^(\s*)/)[1].length;
+
+      // Collect all following lines that are indented more than the multiplier line
+      let j = i + 1;
+      while (j < lines.length) {
+        const nextLine = lines[j];
+        const nextTrimmed = nextLine.trim();
+
+        // Skip empty lines
+        if (!nextTrimmed) {
+          j++;
+          continue;
+        }
+
+        // Get indentation of the next line
+        const nextIndent = nextLine.match(/^(\s*)/)[1].length;
+
+        // If this line is indented more than the multiplier line, it's part of the block
+        if (nextIndent > baseIndent) {
+          indentedLines.push(nextTrimmed);
+          j++;
+        } else {
+          // Stop when we hit a line with equal or less indentation
+          break;
+        }
+      }
+
+      // If we found indented lines, expand them
+      if (indentedLines.length > 0 && Number.isFinite(times) && times > 0) {
+        for (let t = 0; t < times; t++) {
+          result.push(...indentedLines);
+        }
+        i = j; // Skip past the indented block
+      } else {
+        // No indented lines found, skip the multiplier line
+        i++;
+      }
+    } else if (trimmed) {
+      // Regular line with content, add trimmed version
+      result.push(trimmed);
+      i++;
+    } else {
+      // Empty line, skip
+      i++;
+    }
+  }
+
+  return result.join('\n');
 }
 
 /**

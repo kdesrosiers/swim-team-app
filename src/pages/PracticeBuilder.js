@@ -19,7 +19,7 @@ import {
 } from "../utils/timeHelpers";
 import { aggregatePracticeStats, setAcronymsConfig } from "../utils/statsParser";
 import { calculateSectionTime, calculateSectionYardage } from "../utils/intervalParser";
-import { calculatePracticeClockTimes, hasGroupSplits } from "../utils/groupSyncCalculator";
+import { calculatePracticeClockTimes, hasGroupSplits as checkHasGroupSplits } from "../utils/groupSyncCalculator";
 import GroupSplitSection from "../components/GroupSplitSection";
 
 import {
@@ -398,7 +398,7 @@ function PracticeBuilder() {
       const poolValue = pool;
 
       // Calculate clock times for group splits before saving
-      const sectionsWithClockTimes = hasGroupSplits(sections)
+      const sectionsWithClockTimes = checkHasGroupSplits(sections)
         ? calculatePracticeClockTimes(sections, startTime).sections
         : sections;
 
@@ -472,7 +472,7 @@ function PracticeBuilder() {
       const poolValue = pool;
 
       // Calculate clock times for group splits before exporting
-      const sectionsWithClockTimes = hasGroupSplits(sections)
+      const sectionsWithClockTimes = checkHasGroupSplits(sections)
         ? calculatePracticeClockTimes(sections, startTime).sections
         : sections;
 
@@ -531,7 +531,7 @@ function PracticeBuilder() {
       const poolValue = pool;
 
       // Calculate clock times for group splits
-      const sectionsWithClockTimes = hasGroupSplits(sections)
+      const sectionsWithClockTimes = checkHasGroupSplits(sections)
         ? calculatePracticeClockTimes(sections, startTime).sections
         : sections;
 

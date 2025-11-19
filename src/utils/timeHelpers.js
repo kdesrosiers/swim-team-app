@@ -72,11 +72,14 @@ export function extractFirstIntervalSeconds(line) {
  * @returns {string} - Expanded text
  */
 export function expandBlocks(text) {
-  let out = text;
-  const pattern = /(\d+)\s*[xX]\s*{([^{}]*)}/s; // innermost only
+  if (!text) return '';
 
-  while (pattern.test(out)) {
-    out = out.replace(pattern, (_, n, inner) => {
+  // First handle curly brace blocks
+  let out = text;
+  const bracePattern = /(\d+)\s*[xX×]\s*{([^{}]*)}/s;
+
+  while (bracePattern.test(out)) {
+    out = out.replace(bracePattern, (_, n, inner) => {
       const times = parseInt(n, 10);
       if (!Number.isFinite(times) || times <= 0) return inner;
       const block = inner.trim();
@@ -84,7 +87,69 @@ export function expandBlocks(text) {
     });
   }
 
-  return out;
+  // Now handle indentation-based blocks
+  const lines = out.split('\n');
+  const result = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Check if this line is a multiplier without opening brace (e.g., "2 x " or "2 x")
+    const multiplierMatch = trimmed.match(/^(\d+)\s*[xX×]\s*$/);
+
+    if (multiplierMatch) {
+      const times = parseInt(multiplierMatch[1], 10);
+      const indentedLines = [];
+
+      // Get the indentation level of the current line
+      const baseIndent = line.match(/^(\s*)/)[1].length;
+
+      // Collect all following lines that are indented more than the multiplier line
+      let j = i + 1;
+      while (j < lines.length) {
+        const nextLine = lines[j];
+        const nextTrimmed = nextLine.trim();
+
+        // Skip empty lines
+        if (!nextTrimmed) {
+          j++;
+          continue;
+        }
+
+        // Get indentation of the next line
+        const nextIndent = nextLine.match(/^(\s*)/)[1].length;
+
+        // If this line is indented more than the multiplier line, it's part of the block
+        if (nextIndent > baseIndent) {
+          indentedLines.push(nextTrimmed); // Use trimmed version for consistent parsing
+          j++;
+        } else {
+          // Stop when we hit a line with equal or less indentation
+          break;
+        }
+      }
+
+      // If we found indented lines, expand them
+      if (indentedLines.length > 0 && Number.isFinite(times) && times > 0) {
+        for (let t = 0; t < times; t++) {
+          result.push(...indentedLines);
+        }
+        i = j; // Skip past the indented block
+      } else {
+        // No indented lines found, just add the multiplier line as-is
+        result.push(line);
+        i++;
+      }
+    } else {
+      // Regular line, add as-is
+      result.push(line);
+      i++;
+    }
+  }
+
+  return result.join('\n');
 }
 
 /**

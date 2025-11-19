@@ -2,23 +2,21 @@ import React, { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import {
   listSwimmers,
-  listRosterGroups,
   listLocations,
   deleteSwimmer,
   calculateAge,
 } from "../api/swimmers";
+import { getConfig } from "../api/config";
 import SwimmerForm from "../components/SwimmerForm";
 import SwimmerDetailView from "../components/SwimmerDetailView";
-import RosterGroupManager from "../components/RosterGroupManager";
 import "./SwimmerRoster.css";
 
 function SwimmerRoster() {
   const [swimmers, setSwimmers] = useState([]);
-  const [rosterGroups, setRosterGroups] = useState([]);
+  const [rosters, setRosters] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showGroupManager, setShowGroupManager] = useState(false);
   const [selectedSwimmer, setSelectedSwimmer] = useState(null);
   const [editingSwimmer, setEditingSwimmer] = useState(null);
 
@@ -56,15 +54,18 @@ function SwimmerRoster() {
   const loadAllData = async () => {
     try {
       setLoading(true);
-      const [groupsData, locationsData] = await Promise.all([
-        listRosterGroups(),
+      const [configData, locationsData] = await Promise.all([
+        getConfig(),
         listLocations(),
       ]);
-      setRosterGroups(groupsData);
+
+      // Extract rosters from config
+      const rosterList = Array.isArray(configData?.rosters) ? configData.rosters : [];
+      setRosters(rosterList);
       setLocations(locationsData);
     } catch (e) {
       console.error("Failed to load data:", e);
-      toast.error("Failed to load roster groups and locations");
+      toast.error("Failed to load rosters and locations");
     } finally {
       setLoading(false);
     }
@@ -137,12 +138,6 @@ function SwimmerRoster() {
             <button className="btn-primary" onClick={handleAddSwimmer}>
               ➕ Add Swimmer
             </button>
-            <button
-              className="btn-secondary"
-              onClick={() => setShowGroupManager(true)}
-            >
-              ⚙️ Manage Groups
-            </button>
           </div>
         </div>
 
@@ -186,9 +181,9 @@ function SwimmerRoster() {
               className="filter-select"
             >
               <option value="">All Groups</option>
-              {rosterGroups.map((group) => (
-                <option key={group._id} value={group._id}>
-                  {group.name}
+              {rosters.map((roster) => (
+                <option key={roster} value={roster}>
+                  {roster}
                 </option>
               ))}
             </select>
@@ -260,7 +255,7 @@ function SwimmerRoster() {
                         {swimmer.dateOfBirth && calculateAge(swimmer.dateOfBirth)}
                       </div>
                       <div className="col-group">
-                        {swimmer.rosterGroup?.name || "—"}
+                        {swimmer.rosterGroup || "—"}
                       </div>
                       <div className="col-status">
                         <span className={`status-badge status-${swimmer.memberStatus.toLowerCase()}`}>
@@ -299,8 +294,6 @@ function SwimmerRoster() {
           {selectedSwimmer && (
             <SwimmerDetailView
               swimmer={selectedSwimmer}
-              rosterGroups={rosterGroups}
-              locations={locations}
               onEdit={handleEditSwimmer}
               onDelete={handleDeleteSwimmer}
               onClose={() => setSelectedSwimmer(null)}
@@ -317,21 +310,10 @@ function SwimmerRoster() {
       {showAddForm && (
         <SwimmerForm
           swimmer={editingSwimmer}
-          rosterGroups={rosterGroups}
+          rosters={rosters}
           locations={locations}
           onClose={handleFormClose}
           onSuccess={handleFormSuccess}
-        />
-      )}
-
-      {/* Roster Group Manager Modal */}
-      {showGroupManager && (
-        <RosterGroupManager
-          onClose={() => setShowGroupManager(false)}
-          onSuccess={() => {
-            loadAllData();
-            setShowGroupManager(false);
-          }}
         />
       )}
     </div>
