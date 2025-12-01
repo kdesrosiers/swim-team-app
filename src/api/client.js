@@ -5,7 +5,7 @@ const viteEnv = typeof import.meta !== "undefined" ? import.meta.env : {};
 const API_BASE =
   (viteEnv && viteEnv.VITE_API_URL) ||
   process.env.REACT_APP_API_URL ||
-  "http://localhost:5174";
+  "http://localhost:5000";
 
 const ADMIN_KEY =
   (viteEnv && viteEnv.VITE_ADMIN_KEY) ||

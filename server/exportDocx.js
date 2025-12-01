@@ -1,4 +1,6 @@
 // server/exportDocx.js
+import fs from "node:fs/promises";
+import path from "node:path";
 import sanitize from "sanitize-filename";
 import {
   AlignmentType,
@@ -53,7 +55,7 @@ function headerLine(leftText, rightText, rightTabPos) {
 }
 // -------------------------------------------
 
-export async function exportPracticeToDocx(practice) {
+export async function exportPracticeToDocx(practice, outDir) {
   const {
     title = "Practice",         // e.g., "Practice 09/06/2025 — Senior" (built in frontend)
     date,                       // "YYYY-MM-DD" from the date picker (used for meta + filename)
@@ -296,9 +298,19 @@ export async function exportPracticeToDocx(practice) {
   const safeTitle = (sanitize(title).trim() || "Practice").slice(0, 120);
   const filename = `${safeTitle}.docx`;
 
-  // Convert document to buffer
-  const buffer = await Packer.toBuffer(doc);
+  // Determine output directory
+  const exportDir = outDir || path.join(process.cwd(), "exports");
 
-  // Return buffer and filename for download
-  return { buffer, filename };
+  // Ensure output dir exists
+  await fs.mkdir(exportDir, { recursive: true });
+
+  // Full file path
+  const filePath = path.join(exportDir, filename);
+
+  // Convert document to buffer and save to disk
+  const buffer = await Packer.toBuffer(doc);
+  await fs.writeFile(filePath, buffer);
+
+  // Return file path
+  return filePath;
 }
