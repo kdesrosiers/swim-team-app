@@ -208,8 +208,7 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
 app.get("/api/practices", async (req, res) => {
   try {
     const { roster = "", season = "", q = "", page = 1, limit = 20 } = req.query;
-    const userId = req.header("x-user-id") || process.env.DEV_USER_ID || "default-user";
-    const where = { userId };
+    const where = {};
     if (roster) where.roster = roster;
     if (season) where.season = season;
     if (q) {
@@ -241,8 +240,7 @@ app.get("/api/practices", async (req, res) => {
 // READ one
 app.get("/api/practices/:id", async (req, res) => {
   try {
-    const userId = req.header("x-user-id") || process.env.DEV_USER_ID || "default-user";
-    const doc = await PracticeModel.findOne({ _id: req.params.id, userId });
+    const doc = await PracticeModel.findById(req.params.id);
     if (!doc) return res.status(404).json({ error: "Not found" });
     res.json(doc);
   } catch (e) {
