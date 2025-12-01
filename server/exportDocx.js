@@ -1,6 +1,4 @@
 // server/exportDocx.js
-import fs from "node:fs/promises";
-import path from "node:path";
 import sanitize from "sanitize-filename";
 import {
   AlignmentType,
@@ -30,9 +28,6 @@ const TWIP = {
   indent: 720, // 0.5"
 };
 
-// ✅ Default absolute export directory (Windows)
-const DEFAULT_EXPORT_DIR = "C:/Users/kdesr/Desktop/practices";
-
 // ----------------- Helpers -----------------
 function p(text = "", opts = {}) {
   return new Paragraph({
@@ -58,7 +53,7 @@ function headerLine(leftText, rightText, rightTabPos) {
 }
 // -------------------------------------------
 
-export async function exportPracticeToDocx(practice, outDir) {
+export async function exportPracticeToDocx(practice) {
   const {
     title = "Practice",         // e.g., "Practice 09/06/2025 — Senior" (built in frontend)
     date,                       // "YYYY-MM-DD" from the date picker (used for meta + filename)
@@ -297,17 +292,13 @@ export async function exportPracticeToDocx(practice, outDir) {
     ],
   });
 
-  // ✅ Always write to Desktop/practices unless an explicit outDir is passed
-  const exportDir = outDir || DEFAULT_EXPORT_DIR;
-
-  // Ensure output dir exists
-  await fs.mkdir(exportDir, { recursive: true });
-
-  // Filename (sanitized)
+  // Generate filename (sanitized)
   const safeTitle = (sanitize(title).trim() || "Practice").slice(0, 120);
-  const filePath = path.join(exportDir, `${safeTitle}.docx`);
+  const filename = `${safeTitle}.docx`;
 
+  // Convert document to buffer
   const buffer = await Packer.toBuffer(doc);
-  await fs.writeFile(filePath, buffer);
-  return filePath;
+
+  // Return buffer and filename for download
+  return { buffer, filename };
 }

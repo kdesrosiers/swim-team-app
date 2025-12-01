@@ -509,11 +509,11 @@ function PracticeBuilder() {
       };
 
       const out = await exportPracticeDocx(payload);
-      // server returns { filePath } — show it
-      if (out?.filePath) {
-        toast.success(`Exported to: ${out.filePath}`, { duration: 6000 });
+      // Download triggered automatically, show success message
+      if (out?.filename) {
+        toast.success(`Downloaded: ${out.filename}`, { duration: 4000 });
       } else {
-        toast.success("Export completed!");
+        toast.success("Export downloaded!");
       }
     } catch (e) {
       console.error(e);
@@ -584,7 +584,7 @@ function PracticeBuilder() {
         totals,
       });
 
-      toast.success(`Saved & exported to: ${out.filePath}`, { duration: 6000 });
+      toast.success(`Saved & downloaded: ${out.filename || "Practice.docx"}`, { duration: 4000 });
     } catch (e) {
       console.error(e);
       toast.error(e.message || "Save & Export failed. Check console for details.");

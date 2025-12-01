@@ -16,7 +16,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, ".env") });
 const app = express();
-app.use(cors());
+
+// CORS configuration for multiple environments
+const allowedOrigins = [
+  'http://localhost:3000', // Local development
+  process.env.FRONTEND_URL // Production Vercel URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-user-id']
+}));
+
 app.use(express.json());
 
 // simple guard (dev)
@@ -297,10 +310,16 @@ app.put("/api/practices/:id/favorite", async (req, res) => {
 // EXPORT DOCX
 app.post("/api/export/docx", async (req, res) => {
   try {
-    const outDir = process.env.EXPORT_DIR || path.join(process.cwd(), "exports");
     // Expect: { title, date, pool, roster, startTime, sections:[{title,type,text,yardage,timeSeconds}], totals }
-    const filePath = await exportPracticeToDocx(req.body, outDir);
-    res.json({ ok: true, filePath });
+    const result = await exportPracticeToDocx(req.body);
+
+    // Set response headers for file download
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.setHeader("Content-Length", result.buffer.length);
+
+    // Send the buffer as response
+    res.send(result.buffer);
   } catch (e) {
     console.error("Export failed:", e);
     res.status(500).json({ error: "Export failed", detail: String(e?.message || e) });
@@ -998,5 +1017,5 @@ app.delete("/api/best-times/:id", authMiddleware, async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT ?? 5174;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`API listening on http://localhost:${PORT}`));
