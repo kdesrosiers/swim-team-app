@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import { post } from "../api/client";
 import "./Register.css";
 
 export default function Register() {
@@ -69,26 +70,14 @@ export default function Register() {
         };
       }
 
-      const response = await fetch("http://localhost:5174/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Registration failed");
-      }
+      const data = await post("/api/auth/register", requestBody);
 
       // Store token and user info
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
       toast.success(`Welcome, ${data.user.firstName}!`);
-      navigate("/");
+      navigate("/home");
     } catch (error) {
       console.error("Registration error:", error);
       toast.error(error.message || "Registration failed. Please try again.");

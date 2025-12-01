@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import { post } from "../api/client";
 import "./Login.css";
 
 export default function Login() {
@@ -23,26 +24,14 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5174/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed");
-      }
+      const data = await post("/api/auth/login", formData);
 
       // Store token and user info
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
       toast.success(`Welcome back, ${data.user.firstName}!`);
-      navigate("/");
+      navigate("/home");
     } catch (error) {
       console.error("Login error:", error);
       toast.error(error.message || "Login failed. Please try again.");

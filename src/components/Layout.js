@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import ThemeSettings from './ThemeSettings';
 import FeedbackButton from './FeedbackButton';
@@ -7,6 +7,7 @@ import './Layout.css';
 
 export default function Layout() {
   const { setIsSettingsOpen } = useTheme();
+  const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -23,33 +24,39 @@ export default function Layout() {
     }
   }, []);
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
   return (
     <div>
       <header className="site-header">
         <div className="brand">Swim Team App</div>
         <nav className="nav">
           <NavLink
-            to="/"
+            to="/home"
             end
             className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
           >
             Home
           </NavLink>
           <NavLink
-            to="/builder"
+            to="/home/builder"
             className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
           >
             Practice Builder
           </NavLink>
           <NavLink
-            to="/practices"
+            to="/home/practices"
             className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
           >
             Practice Library
           </NavLink>
           {isAdmin && (
             <NavLink
-              to="/swimmers"
+              to="/home/swimmers"
               className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
             >
               Swimmers
@@ -57,14 +64,14 @@ export default function Layout() {
           )}
           {isAdmin && (
             <NavLink
-              to="/feedback"
+              to="/home/feedback"
               className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
             >
               Feedback
             </NavLink>
           )}
           <NavLink
-            to="/config"
+            to="/home/config"
             className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
           >
             Configuration
@@ -75,6 +82,13 @@ export default function Layout() {
             title="Theme Settings"
           >
             🎨
+          </button>
+          <button
+            className="logout-btn"
+            onClick={handleLogout}
+            title="Sign Out"
+          >
+            Sign Out
           </button>
         </nav>
       </header>
