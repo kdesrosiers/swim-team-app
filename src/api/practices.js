@@ -6,8 +6,7 @@ export async function exportPracticeDocx(payload) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${localStorage.getItem("token")}`,
-      "x-admin-key": localStorage.getItem("adminKey") || "",
+      "x-admin-key": process.env.REACT_APP_ADMIN_KEY || "",
     },
     body: JSON.stringify(payload),
   });
