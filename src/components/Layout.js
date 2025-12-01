@@ -76,6 +76,13 @@ export default function Layout() {
           >
             Configuration
           </NavLink>
+          <NavLink
+            to="/home/settings"
+            className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
+            title="User Settings"
+          >
+            ⚙️ Settings
+          </NavLink>
           <button
             className="settings-btn"
             onClick={() => setIsSettingsOpen(true)}

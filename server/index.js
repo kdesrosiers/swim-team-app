@@ -38,6 +38,9 @@ app.use((req, res, next) => {
   const publicPaths = ["/health", "/api/auth/register", "/api/auth/login"];
   if (publicPaths.includes(req.path)) return next();
 
+  // Allow PUT /api/users/* for user profile updates
+  if (req.method === "PUT" && req.path.startsWith("/api/users/")) return next();
+
   const key = req.header("x-admin-key");
   if (!key || key !== process.env.ADMIN_KEY) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -60,7 +63,7 @@ watchAcronymsConfig();
 // REGISTER a new user
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, username, password, swimTeam } = req.body;
+    const { firstName, lastName, email, phone, username, password, swimTeam, exportDirectory } = req.body;
 
     // Validation
     if (!firstName || !lastName || !email || !username || !password) {
@@ -92,6 +95,7 @@ app.post("/api/auth/register", async (req, res) => {
       username,
       password: hashedPassword,
       swimTeam: swimTeam || {},
+      exportDirectory: exportDirectory || "",
       subscription: {
         type: "free",
         status: "trial",
@@ -113,6 +117,7 @@ app.post("/api/auth/register", async (req, res) => {
       email: user.email,
       username: user.username,
       swimTeam: user.swimTeam,
+      exportDirectory: user.exportDirectory,
       subscription: user.subscription,
       isAdmin: user.isAdmin,
       permissions: user.permissions,
@@ -169,6 +174,7 @@ app.post("/api/auth/login", async (req, res) => {
       email: user.email,
       username: user.username,
       swimTeam: user.swimTeam,
+      exportDirectory: user.exportDirectory,
       subscription: user.subscription,
       isAdmin: user.isAdmin,
       permissions: user.permissions,
@@ -310,19 +316,68 @@ app.put("/api/practices/:id/favorite", async (req, res) => {
 // EXPORT DOCX
 app.post("/api/export/docx", async (req, res) => {
   try {
+    const { userId, ...practiceData } = req.body;
+
+    // Try to get user's export directory if userId is provided
+    let outDir = "C:\\Users\\kdesr\\Desktop\\Practices"; // default
+
+    if (userId) {
+      try {
+        const user = await User.findById(userId);
+        if (user && user.exportDirectory) {
+          outDir = user.exportDirectory;
+        }
+      } catch (error) {
+        console.warn("Could not fetch user export directory:", error.message);
+      }
+    }
+
+    // Fallback to environment variable if set
+    outDir = process.env.EXPORT_DIR || outDir;
+
     // Expect: { title, date, pool, roster, startTime, sections:[{title,type,text,yardage,timeSeconds}], totals }
-    const result = await exportPracticeToDocx(req.body);
-
-    // Set response headers for file download
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
-    res.setHeader("Content-Length", result.buffer.length);
-
-    // Send the buffer as response
-    res.send(result.buffer);
+    const filePath = await exportPracticeToDocx(practiceData, outDir);
+    res.json({ ok: true, filePath });
   } catch (e) {
     console.error("Export failed:", e);
     res.status(500).json({ error: "Export failed", detail: String(e?.message || e) });
+  }
+});
+
+// UPDATE USER PROFILE
+app.put("/api/users/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { exportDirectory } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { exportDirectory },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Return updated user data
+    const userResponse = {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      username: user.username,
+      swimTeam: user.swimTeam,
+      exportDirectory: user.exportDirectory,
+      subscription: user.subscription,
+      isAdmin: user.isAdmin,
+      permissions: user.permissions,
+    };
+
+    res.json(userResponse);
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({ error: "Failed to update user", detail: String(error?.message || error) });
   }
 });
 

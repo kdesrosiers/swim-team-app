@@ -1,41 +1,25 @@
 import { get, post, put, del } from "./client";
-import API_URL from "../config";
 
-export async function exportPracticeDocx(payload) {
-  const response = await fetch(`${API_URL}/api/export/docx`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-admin-key": process.env.REACT_APP_ADMIN_KEY || "",
-    },
-    body: JSON.stringify(payload),
-  });
+export function exportPracticeDocx(payload) {
+  // Add userId to the payload if available
+  const userStr = localStorage.getItem("user");
+  let userId = null;
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Export failed" }));
-    throw new Error(error.error || "Export failed");
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      userId = user._id;
+    } catch (e) {
+      console.error("Could not parse user from localStorage:", e);
+    }
   }
 
-  // Get filename from Content-Disposition header
-  const contentDisposition = response.headers.get("Content-Disposition");
-  let filename = "Practice.docx";
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?([^"]+)"?/);
-    if (match) filename = match[1];
-  }
+  const payloadWithUserId = {
+    ...payload,
+    userId,
+  };
 
-  // Get the blob and trigger download
-  const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-
-  return { ok: true, filename };
+  return post("/api/export/docx", payloadWithUserId);
 }
 
 export function listPractices(params = {}) {

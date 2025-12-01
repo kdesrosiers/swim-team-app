@@ -380,6 +380,12 @@ const UserSchema = new mongoose.Schema(
         trim: true,
       },
     },
+    exportDirectory: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: [500, "Export directory path must be less than 500 characters"],
+    },
     lastLogin: Date,
     isActive: {
       type: Boolean,

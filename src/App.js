@@ -11,6 +11,7 @@ import ConfigMaintenance from './pages/ConfigMaintenance';
 import SeasonsMaintenance from './pages/SeasonsMaintenance';
 import FeedbackManagement from './pages/FeedbackManagement';
 import SwimmerRoster from './pages/SwimmerRoster';
+import UserSettings from './pages/UserSettings';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import NotFound from './pages/NotFound';
@@ -70,6 +71,7 @@ function App() {
               <Route path="config" element={<ConfigHub />} />
               <Route path="config/rosters" element={<ConfigMaintenance />} />
               <Route path="config/seasons" element={<SeasonsMaintenance />} />
+              <Route path="settings" element={<UserSettings />} />
             </Route>
 
             {/* Catch-all for protected routes (redirect to login) */}

@@ -17,6 +17,7 @@ export default function Register() {
     confirmPassword: "",
     teamName: "",
     teamAbbreviation: "",
+    exportDirectory: "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -68,6 +69,11 @@ export default function Register() {
           name: formData.teamName,
           abbreviation: formData.teamAbbreviation || "",
         };
+      }
+
+      // Add export directory if provided
+      if (formData.exportDirectory) {
+        requestBody.exportDirectory = formData.exportDirectory;
       }
 
       const data = await post("/api/auth/register", requestBody);
@@ -244,6 +250,23 @@ export default function Register() {
                   maxLength="10"
                 />
               </div>
+            </div>
+
+            <div className="form-divider">
+              <span>Practice Export Settings (Optional)</span>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="exportDirectory">Export Directory</label>
+              <input
+                type="text"
+                id="exportDirectory"
+                name="exportDirectory"
+                value={formData.exportDirectory}
+                onChange={handleChange}
+                placeholder="e.g., C:\\Users\\YourName\\Desktop\\Practices"
+              />
+              <small>Where practice files will be saved when you export</small>
             </div>
 
             <button type="submit" className="register-btn" disabled={loading}>
