@@ -41,6 +41,19 @@ app.use((req, res, next) => {
   // Allow PUT /api/users/* for user profile updates
   if (req.method === "PUT" && req.path.startsWith("/api/users/")) return next();
 
+  // Check for JWT token (preferred for authenticated users)
+  const authHeader = req.header("Authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    // JWT token is present, try to verify it
+    try {
+      authMiddleware(req, res, next);
+      return;
+    } catch (e) {
+      // If JWT verification fails, fall through to check admin key
+    }
+  }
+
+  // Fall back to admin key for dev/admin operations
   const key = req.header("x-admin-key");
   if (!key || key !== process.env.ADMIN_KEY) {
     return res.status(401).json({ error: "Unauthorized" });
