@@ -34,8 +34,8 @@ app.use(express.json());
 
 // simple guard (dev)
 app.use((req, res, next) => {
-  // Skip auth for health check and auth endpoints
-  const publicPaths = ["/health", "/api/auth/register", "/api/auth/login"];
+  // Skip auth for health check, auth endpoints, and public config data
+  const publicPaths = ["/health", "/api/auth/register", "/api/auth/login", "/api/config", "/api/seasons", "/api/acronyms"];
   if (publicPaths.includes(req.path)) return next();
 
   // Allow PUT /api/users/* for user profile updates

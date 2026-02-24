@@ -46,10 +46,10 @@ export default function Home() {
         <h2>Ready to get started?</h2>
         <p>Build your first practice or explore your library</p>
         <div className="cta-buttons">
-          <Link to="/builder" className="btn btn-primary">
+          <Link to="/home/builder" className="btn btn-primary">
             Create Practice
           </Link>
-          <Link to="/practices" className="btn btn-secondary">
+          <Link to="/home/practices" className="btn btn-secondary">
             View Library
           </Link>
         </div>

@@ -117,7 +117,7 @@ export default function PracticeLibrary() {
   function handleEdit() {
     if (!selected) return;
     // Pass practice data with edit mode
-    navigate("/builder", {
+    navigate("/home/builder", {
       state: {
         mode: "edit",
         practice: selected
@@ -129,7 +129,7 @@ export default function PracticeLibrary() {
     if (!selected) return;
     // Pass practice data but with today's date
     const today = new Date().toISOString().split('T')[0];
-    navigate("/builder", {
+    navigate("/home/builder", {
       state: {
         mode: "template",
         practice: { ...selected, date: today }
