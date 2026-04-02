@@ -64,6 +64,14 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  /* Remove tap highlight flash on iOS */
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  /* Prevent iOS from auto-resizing text in landscape */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html, body, #root {
@@ -78,6 +86,23 @@ body {
   color: var(--text);
   background: var(--gray-50);
   line-height: 1.6;
+}
+
+/* ========== iOS Input Zoom Fix ========== */
+/* iOS Safari zooms in when an input/select has font-size < 16px.
+   Force 16px on mobile so the page never zooms on focus. */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="time"],
+  input[type="date"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 code {

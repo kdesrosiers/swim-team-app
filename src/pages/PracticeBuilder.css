@@ -669,3 +669,49 @@
     padding: var(--space-sm);
   }
 }
+
+@media (max-width: 480px) {
+  .app-container {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .header {
+    font-size: 1.25rem;
+    margin-bottom: var(--space-md);
+  }
+
+  .toolbar {
+    padding: var(--space-sm);
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+  }
+
+  .practice-section {
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+  }
+
+  .section-name-input {
+    font-size: 1rem;
+  }
+
+  .stats-panel {
+    padding: var(--space-md);
+  }
+
+  .stats-title {
+    font-size: 1.25rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .preview-panel {
+    padding: var(--space-md);
+  }
+
+  .group-split-preview-content {
+    grid-template-columns: 1fr;
+  }
+}

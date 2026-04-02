@@ -8,7 +8,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--space-xl);
+  /* Safe area insets for iPhone notch / Dynamic Island (landscape) */
+  padding: 0 max(var(--space-xl), env(safe-area-inset-right)) 0 max(var(--space-xl), env(safe-area-inset-left));
   background: white;
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
@@ -73,6 +74,8 @@
 /* ========== Main Content Area ========== */
 .site-main {
   padding-top: var(--header-height);
+  /* Extra bottom padding for iPhone home indicator */
+  padding-bottom: env(safe-area-inset-bottom);
   min-height: 100vh;
   background: var(--gray-50);
 }
@@ -139,17 +142,34 @@
 
   .nav {
     gap: var(--space-xs);
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
   }
 
   .nav-link {
     padding: var(--space-xs) var(--space-sm);
     font-size: 0.875rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .logout-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .settings-btn {
     width: 32px;
     height: 32px;
     font-size: 1.125rem;
+    flex-shrink: 0;
   }
 }
 
@@ -158,24 +178,43 @@
     flex-wrap: wrap;
     height: auto;
     padding: var(--space-sm) var(--space-md);
+    gap: var(--space-xs);
   }
 
   .brand {
-    width: 100%;
-    margin-bottom: var(--space-sm);
+    flex: 1;
+    font-size: 1.125rem;
   }
 
   .nav {
     width: 100%;
-    justify-content: space-between;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
   }
 
   .nav-link {
-    flex: 1;
-    justify-content: center;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    padding: 6px 10px;
+  }
+
+  .logout-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    padding: 6px 10px;
   }
 
   .site-main {
-    padding-top: calc(var(--header-height) + 20px);
+    padding-top: calc(var(--header-height) + 48px);
   }
 }

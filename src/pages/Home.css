@@ -161,3 +161,38 @@
     justify-content: center;
   }
 }
+
+@media (max-width: 480px) {
+  .home-page {
+    padding: var(--space-lg) var(--space-md);
+  }
+
+  .home-hero {
+    padding: var(--space-lg) var(--space-sm);
+    margin-bottom: var(--space-xl);
+  }
+
+  .home-hero h1 {
+    font-size: 1.75rem;
+  }
+
+  .home-hero p {
+    font-size: 1rem;
+  }
+
+  .home-cta {
+    padding: var(--space-lg);
+  }
+
+  .home-cta h2 {
+    font-size: 1.5rem;
+  }
+
+  .home-cta p {
+    font-size: 1rem;
+  }
+
+  .feature-card {
+    padding: var(--space-lg);
+  }
+}

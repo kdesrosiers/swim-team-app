@@ -499,7 +499,11 @@
 
 @media (max-width: 480px) {
   .swimmer-roster-page {
-    padding: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .roster-header h1 {
+    font-size: 1.25rem;
   }
 
   .table-header,
@@ -518,9 +522,22 @@
 
   .table-header {
     padding: var(--space-sm) var(--space-md);
+    font-size: 0.75rem;
   }
 
   .table-row {
     padding: var(--space-sm) var(--space-md);
+  }
+
+  .filters-section {
+    padding: var(--space-md);
+  }
+
+  .header-actions {
+    flex-direction: column;
+  }
+
+  .header-actions button {
+    width: 100%;
   }
 }

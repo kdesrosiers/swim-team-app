@@ -531,3 +531,91 @@
     border-bottom: none;
   }
 }
+
+@media (max-width: 768px) {
+  /* Roster sidebar becomes a horizontal scrolling tab strip */
+  .roster-sidebar {
+    flex-direction: row;
+    max-height: none;
+    height: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .roster-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .roster-sidebar-header {
+    display: none;
+  }
+
+  .roster-list {
+    flex-direction: row;
+    padding: var(--space-sm);
+    gap: var(--space-xs);
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .roster-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .roster-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+    width: auto;
+    padding: var(--space-xs) var(--space-md);
+    font-size: 0.875rem;
+  }
+
+  /* Practice list sidebar goes full width */
+  .practice-list-sidebar {
+    max-height: none;
+    height: auto;
+  }
+
+  .practice-list-header {
+    padding: var(--space-md);
+  }
+
+  /* Action buttons wrap on smaller screens */
+  .practice-actions {
+    flex-wrap: wrap;
+    padding: var(--space-md) var(--space-lg) 0;
+    gap: var(--space-sm);
+  }
+
+  .practice-preview-card {
+    padding: var(--space-lg);
+  }
+}
+
+@media (max-width: 480px) {
+  .practice-actions {
+    padding: var(--space-sm) var(--space-md) 0;
+  }
+
+  .practice-actions button {
+    flex: 1;
+    justify-content: center;
+    font-size: 0.8125rem;
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .practice-preview-card {
+    padding: var(--space-md);
+  }
+
+  .practice-list-header {
+    padding: var(--space-sm) var(--space-md);
+  }
+}
