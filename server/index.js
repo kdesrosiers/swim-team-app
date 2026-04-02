@@ -27,7 +27,8 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-user-id']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-user-id'],
+  exposedHeaders: ['Content-Disposition']
 }));
 
 app.use(express.json());
@@ -327,28 +328,10 @@ app.put("/api/practices/:id/favorite", async (req, res) => {
 // EXPORT DOCX
 app.post("/api/export/docx", async (req, res) => {
   try {
-    const { userId, ...practiceData } = req.body;
-
-    // Try to get user's export directory if userId is provided
-    let outDir = "C:\\Users\\kdesr\\Desktop\\Practices"; // default
-
-    if (userId) {
-      try {
-        const user = await User.findById(userId);
-        if (user && user.exportDirectory) {
-          outDir = user.exportDirectory;
-        }
-      } catch (error) {
-        console.warn("Could not fetch user export directory:", error.message);
-      }
-    }
-
-    // Fallback to environment variable if set
-    outDir = process.env.EXPORT_DIR || outDir;
-
-    // Expect: { title, date, pool, roster, startTime, sections:[{title,type,text,yardage,timeSeconds}], totals }
-    const filePath = await exportPracticeToDocx(practiceData, outDir);
-    res.json({ ok: true, filePath });
+    const { buffer, filename } = await exportPracticeToDocx(req.body);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
   } catch (e) {
     console.error("Export failed:", e);
     res.status(500).json({ error: "Export failed", detail: String(e?.message || e) });

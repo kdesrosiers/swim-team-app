@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { listPractices, toggleFavorite } from "../api/practices";
+import { listPractices, toggleFavorite, exportPracticeDocx } from "../api/practices";
+import { parseYardage } from "../utils/yardageParser";
+import { computeSectionTimeSeconds } from "../utils/timeHelpers";
 import { getConfig } from "../api/config";
 import { getSeasons } from "../api/seasons";
 import PracticePreview from "../components/PracticePreview";
@@ -133,6 +135,58 @@ export default function PracticeLibrary() {
         practice: { ...selected, date: today }
       }
     });
+  }
+
+  async function handleExportDocx() {
+    if (!selected) return;
+    try {
+      const sectionsForApi = (selected.sections || []).map(s => {
+        if ((s.type || "").toLowerCase() === "group-split") {
+          return {
+            type: "group-split",
+            title: s.name || s.title || "Group Split",
+            groups: s.groups || [],
+            longestTimeSeconds: s.longestTimeSeconds || 0,
+          };
+        }
+        const text = s.content || s.text || "";
+        const type = (s.type || "").toLowerCase();
+        return {
+          type: type === "break" ? "Break" : "swim",
+          title: s.name || s.title || (type === "break" ? "Break" : "Section"),
+          text,
+          yardage: type !== "break" ? parseYardage(text) : 0,
+          timeSeconds: computeSectionTimeSeconds({ type: type === "break" ? "break" : "swim", content: text }),
+        };
+      });
+
+      const payload = {
+        title: selected.title || `Practice ${selected.date}`,
+        date: selected.date,
+        roster: selected.roster || roster,
+        pool: selected.pool || "",
+        startTime,
+        sections: sectionsForApi,
+        totals: { yardage: 0, timeSeconds: 0 },
+      };
+
+      const [yyyy, mm, dd] = (selected.date || "").split("-");
+      const dateStr = yyyy ? `${mm}${dd}${yyyy}` : "";
+      const rosterStr = (selected.roster || roster || "").replace(/[^a-zA-Z0-9]/g, "");
+      const localFilename = ["Practice", dateStr, rosterStr].filter(Boolean).join(" ") + ".docx";
+
+      const { blob, filename } = await exportPracticeDocx(payload, localFilename);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Export downloaded!");
+    } catch (e) {
+      console.error(e);
+      toast.error(e.message || "Failed to export");
+    }
   }
 
   function handleNotesUpdate(updatedPractice) {
@@ -301,6 +355,9 @@ export default function PracticeLibrary() {
               </button>
               <button className="btn-template" onClick={handleUseTemplate}>
                 📋 Use Template
+              </button>
+              <button className="btn-export" onClick={handleExportDocx}>
+                ⬇️ Export Word
               </button>
             </div>
           )}

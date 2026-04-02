@@ -379,6 +379,18 @@
   box-shadow: var(--shadow-sm);
 }
 
+.btn-export {
+  background: white;
+  color: var(--gray-700);
+  border: 1px solid var(--border);
+}
+
+.btn-export:hover {
+  background: var(--gray-50);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
 .practice-preview-card {
   padding: var(--space-2xl);
   min-height: calc(100% - var(--space-2xl) * 2);

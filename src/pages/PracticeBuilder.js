@@ -508,13 +508,19 @@ function PracticeBuilder() {
         totals,
       };
 
-      const out = await exportPracticeDocx(payload);
-      // server returns { filePath } — show it
-      if (out?.filePath) {
-        toast.success(`Exported to: ${out.filePath}`, { duration: 6000 });
-      } else {
-        toast.success("Export completed!");
-      }
+      const [yyyy, mm, dd] = practiceDate.split("-");
+      const dateStr = `${mm}${dd}${yyyy}`;
+      const rosterStr = (selectedRoster || "").replace(/[^a-zA-Z0-9]/g, "");
+      const localFilename = ["Practice", dateStr, rosterStr].filter(Boolean).join(" ") + ".docx";
+
+      const { blob, filename } = await exportPracticeDocx(payload, localFilename);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Export downloaded!");
     } catch (e) {
       console.error(e);
       toast.error(e.message || "Failed to export. Check console for details.");

@@ -1,25 +1,25 @@
-import { get, post, put, del } from "./client";
+import { get, post, put, del, authHeaders } from "./client";
 
-export function exportPracticeDocx(payload) {
-  // Add userId to the payload if available
-  const userStr = localStorage.getItem("user");
-  let userId = null;
+const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  if (userStr) {
-    try {
-      const user = JSON.parse(userStr);
-      userId = user._id;
-    } catch (e) {
-      console.error("Could not parse user from localStorage:", e);
-    }
+export async function exportPracticeDocx(payload, fallbackFilename = "practice-export.docx") {
+  const res = await fetch(`${API_BASE}/api/export/docx`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Export failed: ${res.status} ${text}`.trim());
   }
 
-  const payloadWithUserId = {
-    ...payload,
-    userId,
-  };
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match ? match[1] : fallbackFilename;
 
-  return post("/api/export/docx", payloadWithUserId);
+  return { blob, filename };
 }
 
 export function listPractices(params = {}) {
