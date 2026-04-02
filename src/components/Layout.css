@@ -215,6 +215,8 @@
   }
 
   .site-main {
-    padding-top: calc(var(--header-height) + 48px);
+    /* Wrapped header is ~85px tall (brand row ~32px + nav row ~33px + padding 16px + gap 4px).
+       96px gives a small buffer without a large visual gap. */
+    padding-top: 96px;
   }
 }

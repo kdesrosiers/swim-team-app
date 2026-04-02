@@ -250,3 +250,29 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 480px) {
+  .group-split-content {
+    padding: var(--space-md);
+  }
+
+  .group-split-header {
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  /* Title input takes full width on its own row */
+  .group-split-header .section-title-input {
+    order: -1;
+    width: 100%;
+    flex: none;
+  }
+
+  .groups-grid {
+    gap: var(--space-md);
+  }
+
+  .group-column {
+    padding: var(--space-sm) var(--space-md);
+  }
+}
