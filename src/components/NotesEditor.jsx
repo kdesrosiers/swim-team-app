@@ -25,7 +25,7 @@ export default function NotesEditor({ practice, onUpdate }) {
 
     setIsSaving(true);
     try {
-      const updated = await updatePractice(practice._id, { notes });
+      await updatePractice(practice._id, { notes });
       setHasChanges(false);
       setIsEditing(false);
       toast.success("Notes saved successfully!");

@@ -14,7 +14,6 @@ import SwimmerRoster from './pages/SwimmerRoster';
 import UserSettings from './pages/UserSettings';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import NotFound from './pages/NotFound';
 import './App.css';
 
 // Protected route wrapper

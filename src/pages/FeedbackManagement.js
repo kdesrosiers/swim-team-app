@@ -20,7 +20,6 @@ export default function FeedbackManagement() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
     // Check if user is admin
@@ -40,6 +39,7 @@ export default function FeedbackManagement() {
     if (isAdmin) {
       loadFeedback();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterStatus, page, isAdmin]);
 
   async function loadFeedback() {
@@ -104,11 +104,6 @@ export default function FeedbackManagement() {
   const getStatusColor = (status) => {
     const option = STATUS_OPTIONS.find(s => s.value === status);
     return option?.color || "#6b7280";
-  };
-
-  const getStatusLabel = (status) => {
-    const option = STATUS_OPTIONS.find(s => s.value === status);
-    return option?.label || status;
   };
 
   const formatDate = (dateString) => {

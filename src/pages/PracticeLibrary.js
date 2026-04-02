@@ -15,7 +15,6 @@ export default function PracticeLibrary() {
 
   // Config-driven rosters
   const [rosters, setRosters] = useState(FALLBACK_ROSTERS);
-  const [defaultRoster, setDefaultRoster] = useState(FALLBACK_ROSTERS[0]);
   const [practiceSchedule, setPracticeSchedule] = useState(null);
 
   // Seasons
@@ -44,7 +43,6 @@ export default function PracticeLibrary() {
           : cfgRosters[0];
 
         setRosters(cfgRosters);
-        setDefaultRoster(cfgDefault);
         setPracticeSchedule(cfg?.practiceSchedule || null);
 
         // initialize selected roster from config
@@ -52,7 +50,6 @@ export default function PracticeLibrary() {
       } catch {
         // fall back silently
         setRosters(FALLBACK_ROSTERS);
-        setDefaultRoster(FALLBACK_ROSTERS[0]);
         setRoster(FALLBACK_ROSTERS[0]);
       }
 
@@ -104,7 +101,8 @@ export default function PracticeLibrary() {
   }
 
   // Reload on roster or season change
-  useEffect(() => { if (roster) refresh(1); /* eslint-disable-next-line */ }, [roster, selectedSeason, showFavoritesOnly]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (roster) refresh(1); }, [roster, selectedSeason, showFavoritesOnly]);
 
   // Debounced search
   useEffect(() => {

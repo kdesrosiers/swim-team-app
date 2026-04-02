@@ -8,7 +8,6 @@ export default function UserSettings() {
   const [formData, setFormData] = useState({
     exportDirectory: "",
   });
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {

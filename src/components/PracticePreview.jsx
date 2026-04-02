@@ -9,7 +9,7 @@ import {
 } from "../utils/timeHelpers";
 
 export default function PracticePreview({ practice, startTime = "06:00" }) {
-    const sections = practice.sections || [];
+    const sections = useMemo(() => practice.sections || [], [practice.sections]);
 
     const sectionYardages = useMemo(
         () => sections.map(s => {
