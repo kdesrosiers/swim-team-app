@@ -12,7 +12,7 @@ function ConfigHub() {
       title: "Roster Configuration",
       description: "Manage rosters, warmups, and practice schedules",
       icon: "👥",
-      path: "/config/rosters",
+      path: "/home/config/rosters",
       color: "#3b82f6",
     },
     {
@@ -20,7 +20,7 @@ function ConfigHub() {
       title: "Seasons Management",
       description: "Configure swim seasons with start and end dates",
       icon: "📅",
-      path: "/config/seasons",
+      path: "/home/config/seasons",
       color: "#10b981",
     },
   ];

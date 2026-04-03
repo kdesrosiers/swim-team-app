@@ -6,7 +6,6 @@ import {
   HeadingLevel,
   Packer,
   Paragraph,
-  TabStopType,
   Table,
   TableCell,
   TableRow,
@@ -39,15 +38,44 @@ function p(text = "", opts = {}) {
   });
 }
 
-function headerLine(leftText, rightText, rightTabPos) {
-  // One paragraph with a right-aligned tab stop for the right column
-  return new Paragraph({
-    spacing: { before: 120, after: 60 },
-    tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
-    children: [
-      new TextRun({ text: leftText, bold: true }),
-      new TextRun({ text: "\t" }), // jump to the right tab stop
-      new TextRun({ text: rightText, bold: true }),
+// Use a borderless 2-cell table instead of tab stops.
+// Google Docs strips custom tab stop definitions on import, so the right-side
+// text would lose its alignment. A table is universally supported.
+const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+const ALL_NO_BORDERS = {
+  top: NO_BORDER, bottom: NO_BORDER,
+  left: NO_BORDER, right: NO_BORDER,
+  insideHorizontal: NO_BORDER, insideVertical: NO_BORDER,
+};
+
+function headerLine(leftText, rightText) {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: ALL_NO_BORDERS,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            borders: ALL_NO_BORDERS,
+            margins: { top: 60, bottom: 30, left: 0, right: 80 },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: leftText, bold: true })],
+              }),
+            ],
+          }),
+          new TableCell({
+            borders: ALL_NO_BORDERS,
+            margins: { top: 60, bottom: 30, left: 80, right: 0 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [new TextRun({ text: rightText, bold: true })],
+              }),
+            ],
+          }),
+        ],
+      }),
     ],
   });
 }
@@ -68,7 +96,6 @@ export async function exportPracticeToDocx(practice) {
   const pageWidth = 8.5 * TWIP.inch;
   const margin = 1 * TWIP.inch;
   const textWidth = pageWidth - margin * 2;
-  const rightTab = margin + textWidth; // right edge for right-aligned tab
 
   const docChildren = [];
 
@@ -150,13 +177,12 @@ export async function exportPracticeToDocx(practice) {
               margins: { top: 100, bottom: 100, left: 100, right: 100 },
               children: [
                 new Paragraph({
-                  tabStops: [{ type: TabStopType.RIGHT, position: columnWidth - 200 }],
-                  children: [
-                    new TextRun({ text: leftText, bold: true }),
-                    new TextRun({ text: "\t" }),
-                    new TextRun({ text: rightText, bold: true })
-                  ]
-                })
+                  children: [new TextRun({ text: leftText, bold: true })],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.RIGHT,
+                  children: [new TextRun({ text: rightText, bold: true })],
+                }),
               ]
             });
           })
@@ -229,7 +255,7 @@ export async function exportPracticeToDocx(practice) {
 
       const rightText = `${formatSeconds(dur)}  \u2192  ${formatClock12(endRounded, false)}`;
 
-      docChildren.push(headerLine(leftTitle, rightText, rightTab));
+      docChildren.push(headerLine(leftTitle, rightText));
 
       const lines = (s?.text || "").split("\n");
       lines.forEach((ln) => {
@@ -266,7 +292,7 @@ export async function exportPracticeToDocx(practice) {
       const totalRight = groupTotal.timeSeconds > 0
         ? `${formatSeconds(groupTotal.timeSeconds)}  \u2192  ${formatClock12(ceilToMinute(startSec + groupTotal.timeSeconds), false)}`
         : "";
-      docChildren.push(headerLine(totalLeft, totalRight, rightTab));
+      docChildren.push(headerLine(totalLeft, totalRight));
     });
   } else {
     const totalLeft = `Total: ${formatNumber(totals?.yardage ?? 0)}m`;
@@ -274,7 +300,7 @@ export async function exportPracticeToDocx(practice) {
       (totals?.timeSeconds ?? 0) > 0
         ? `${formatSeconds(totals.timeSeconds)}  \u2192  ${formatClock12(ceilToMinute(startSec + (totals.timeSeconds || 0)), false)}`
         : "";
-    docChildren.push(headerLine(totalLeft, totalRight, rightTab));
+    docChildren.push(headerLine(totalLeft, totalRight));
   }
 
   // Build document
