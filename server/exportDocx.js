@@ -9,6 +9,7 @@ import {
   Table,
   TableCell,
   TableRow,
+  TabStopType,
   TextRun,
   VerticalAlign,
   WidthType,
@@ -38,9 +39,7 @@ function p(text = "", opts = {}) {
   });
 }
 
-// Use a borderless 2-cell table instead of tab stops.
-// Google Docs strips custom tab stop definitions on import, so the right-side
-// text would lose its alignment. A table is universally supported.
+// Borders config used by the group-split table (section columns stay visually separated).
 const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
 const ALL_NO_BORDERS = {
   top: NO_BORDER, bottom: NO_BORDER,
@@ -48,34 +47,13 @@ const ALL_NO_BORDERS = {
   insideHorizontal: NO_BORDER, insideVertical: NO_BORDER,
 };
 
-function headerLine(leftText, rightText) {
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: ALL_NO_BORDERS,
-    rows: [
-      new TableRow({
-        children: [
-          new TableCell({
-            borders: ALL_NO_BORDERS,
-            margins: { top: 60, bottom: 30, left: 0, right: 80 },
-            children: [
-              new Paragraph({
-                children: [new TextRun({ text: leftText, bold: true })],
-              }),
-            ],
-          }),
-          new TableCell({
-            borders: ALL_NO_BORDERS,
-            margins: { top: 60, bottom: 30, left: 80, right: 0 },
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [new TextRun({ text: rightText, bold: true })],
-              }),
-            ],
-          }),
-        ],
-      }),
+function headerLine(leftText, rightText, rightTabPos) {
+  return new Paragraph({
+    spacing: { before: 60, after: 30 },
+    tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
+    children: [
+      new TextRun({ text: leftText, bold: true }),
+      new TextRun({ text: "\t" + rightText, bold: true }),
     ],
   });
 }
@@ -96,6 +74,7 @@ export async function exportPracticeToDocx(practice) {
   const pageWidth = 8.5 * TWIP.inch;
   const margin = 1 * TWIP.inch;
   const textWidth = pageWidth - margin * 2;
+  const rightTab = textWidth;
 
   const docChildren = [];
 
@@ -255,7 +234,7 @@ export async function exportPracticeToDocx(practice) {
 
       const rightText = `${formatSeconds(dur)}  \u2192  ${formatClock12(endRounded, false)}`;
 
-      docChildren.push(headerLine(leftTitle, rightText));
+      docChildren.push(headerLine(leftTitle, rightText, rightTab));
 
       const lines = (s?.text || "").split("\n");
       lines.forEach((ln) => {
@@ -292,7 +271,7 @@ export async function exportPracticeToDocx(practice) {
       const totalRight = groupTotal.timeSeconds > 0
         ? `${formatSeconds(groupTotal.timeSeconds)}  \u2192  ${formatClock12(ceilToMinute(startSec + groupTotal.timeSeconds), false)}`
         : "";
-      docChildren.push(headerLine(totalLeft, totalRight));
+      docChildren.push(headerLine(totalLeft, totalRight, rightTab));
     });
   } else {
     const totalLeft = `Total: ${formatNumber(totals?.yardage ?? 0)}m`;
