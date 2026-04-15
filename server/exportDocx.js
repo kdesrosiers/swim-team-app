@@ -279,7 +279,7 @@ export async function exportPracticeToDocx(practice) {
       (totals?.timeSeconds ?? 0) > 0
         ? `${formatSeconds(totals.timeSeconds)}  \u2192  ${formatClock12(ceilToMinute(startSec + (totals.timeSeconds || 0)), false)}`
         : "";
-    docChildren.push(headerLine(totalLeft, totalRight));
+    docChildren.push(headerLine(totalLeft, totalRight, rightTab));
   }
 
   // Build document

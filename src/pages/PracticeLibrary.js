@@ -160,6 +160,12 @@ export default function PracticeLibrary() {
         };
       });
 
+      const totalYardage = sectionsForApi.reduce((sum, s) => sum + (s.yardage || 0), 0);
+      const totalTimeSeconds = sectionsForApi.reduce((sum, s) => {
+        if (s.type === "group-split") return sum + (s.longestTimeSeconds || 0);
+        return sum + (s.timeSeconds || 0);
+      }, 0);
+
       const payload = {
         title: selected.title || `Practice ${selected.date}`,
         date: selected.date,
@@ -167,7 +173,7 @@ export default function PracticeLibrary() {
         pool: selected.pool || "",
         startTime,
         sections: sectionsForApi,
-        totals: { yardage: 0, timeSeconds: 0 },
+        totals: { yardage: totalYardage, timeSeconds: totalTimeSeconds },
       };
 
       const [yyyy, mm, dd] = (selected.date || "").split("-");

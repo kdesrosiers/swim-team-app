@@ -579,8 +579,13 @@ function PracticeBuilder() {
         startTime,
       });
 
-      // 2) EXPORT (use the already-mapped sectionsForApi and include startTime)
-      const out = await exportPracticeDocx({
+      // 2) EXPORT — same blob-download pattern as handleExportDocx
+      const [yyyy, mm, dd] = date.split("-");
+      const dateStr = `${mm}${dd}${yyyy}`;
+      const rosterStr = (selectedRoster || "").replace(/[^a-zA-Z0-9]/g, "");
+      const localFilename = ["Practice", dateStr, rosterStr].filter(Boolean).join(" ") + ".docx";
+
+      const { blob, filename } = await exportPracticeDocx({
         title,
         date,
         roster: selectedRoster,
@@ -588,9 +593,16 @@ function PracticeBuilder() {
         startTime,
         sections: sectionsForApi,
         totals,
-      });
+      }, localFilename);
 
-      toast.success(`Saved & exported to: ${out.filePath}`, { duration: 6000 });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success("Saved & exported!", { duration: 6000 });
     } catch (e) {
       console.error(e);
       toast.error(e.message || "Save & Export failed. Check console for details.");
