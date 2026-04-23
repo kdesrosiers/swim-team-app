@@ -798,3 +798,53 @@ BestTimeSchema.pre("save", function (next) {
 });
 
 export const BestTime = mongoose.model("BestTime", BestTimeSchema);
+
+/**
+ * Time Standards schema – stores cut time tables (event × age group × standard level)
+ */
+/**
+ * One row in the cut table: event + ageGroup.
+ * cuts is a flat Map keyed as "gender:course:level", e.g. "F:SCY:AA" -> "1:23.45"
+ */
+const CutEntrySchema = new mongoose.Schema(
+  {
+    event:    { type: String, required: true, trim: true, maxlength: 100 },
+    ageGroup: { type: String, required: true, trim: true, maxlength: 50 },
+    cuts:     { type: Map, of: String },
+  },
+  { _id: false }
+);
+
+const TimeStandardsSetSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: String,
+      required: true,
+      index: true,
+      trim: true,
+      maxlength: 100,
+    },
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+      maxlength: [200, "Name must be less than 200 characters"],
+    },
+    organization: { type: String, trim: true, default: "" },
+    standardLevels: { type: [String], default: ["AAAA", "AAA", "AA", "A", "BB", "B"] },
+    events: { type: [String], default: [] },
+    entries: { type: [CutEntrySchema], default: [] },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { versionKey: false }
+);
+
+TimeStandardsSetSchema.index({ userId: 1, name: 1 });
+
+TimeStandardsSetSchema.pre("save", function (next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+export const TimeStandardsSet = mongoose.model("TimeStandardsSet", TimeStandardsSetSchema);

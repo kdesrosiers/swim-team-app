@@ -1,0 +1,107 @@
+.coaches-hub-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+  padding: var(--space-2xl);
+}
+
+.coaches-hub-header {
+  text-align: center;
+  margin-bottom: var(--space-3xl);
+  padding-top: var(--space-2xl);
+}
+
+.coaches-hub-header h1 {
+  font-size: 3rem;
+  color: white;
+  margin: 0 0 var(--space-md) 0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.coaches-hub-subtitle {
+  font-size: 1.125rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  font-weight: 400;
+}
+
+.coaches-cards-grid {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-2xl);
+  padding: 0 var(--space-md);
+}
+
+.coaches-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: var(--space-2xl);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.coaches-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: var(--card-color, var(--primary));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.coaches-card:hover::before { transform: scaleX(1); }
+
+.coaches-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.coaches-card-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-lg);
+  display: inline-block;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.coaches-card:hover .coaches-card-icon { transform: scale(1.1) rotate(5deg); }
+
+.coaches-card-title {
+  font-size: 1.5rem;
+  color: var(--gray-900);
+  margin: 0 0 var(--space-sm) 0;
+  font-weight: 700;
+}
+
+.coaches-card-description {
+  color: var(--gray-600);
+  margin: 0 0 var(--space-lg) 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.coaches-card-arrow {
+  position: absolute;
+  bottom: var(--space-xl);
+  right: var(--space-xl);
+  font-size: 1.5rem;
+  color: var(--card-color, var(--primary));
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.coaches-card:hover .coaches-card-arrow { opacity: 1; transform: translateX(0); }
+
+@media (max-width: 768px) {
+  .coaches-hub-container { padding: var(--space-lg); }
+  .coaches-hub-header { padding-top: var(--space-lg); margin-bottom: var(--space-2xl); }
+  .coaches-hub-header h1 { font-size: 2rem; }
+  .coaches-cards-grid { grid-template-columns: 1fr; gap: var(--space-lg); }
+  .coaches-card { padding: var(--space-xl); }
+}

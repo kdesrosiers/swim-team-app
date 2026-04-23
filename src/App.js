@@ -12,6 +12,8 @@ import SeasonsMaintenance from './pages/SeasonsMaintenance';
 import FeedbackManagement from './pages/FeedbackManagement';
 import SwimmerRoster from './pages/SwimmerRoster';
 import UserSettings from './pages/UserSettings';
+import CoachesTools from './pages/CoachesTools';
+import TimeStandards from './pages/TimeStandards';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import './App.css';
@@ -71,6 +73,8 @@ function App() {
               <Route path="config/rosters" element={<ConfigMaintenance />} />
               <Route path="config/seasons" element={<SeasonsMaintenance />} />
               <Route path="settings" element={<UserSettings />} />
+              <Route path="coaches" element={<CoachesTools />} />
+              <Route path="coaches/time-standards" element={<TimeStandards />} />
             </Route>
 
             {/* Catch-all for protected routes (redirect to login) */}

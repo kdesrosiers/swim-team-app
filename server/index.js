@@ -3,12 +3,13 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { connectMongo } from "./db.js";
 // ⬇️ Alias the export so the name matches what you use below
-import { Practice as PracticeModel, User, Feedback, Swimmer, RosterGroup, Location, BestTime } from "./models.js";
+import { Practice as PracticeModel, User, Feedback, Swimmer, RosterGroup, Location, BestTime, TimeStandardsSet } from "./models.js";
 import { hashPassword, comparePassword, generateToken, authMiddleware, requireAdmin } from "./auth.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { exportPracticeToDocx } from "./exportDocx.js";
 import { loadConfig, getConfig, saveConfig, watchConfig } from "./config.js";
+import { convertTime as _convertTime, parseTime as _parseTime } from "./utils/swimTimeConversion.js";
 import { loadSeasonsConfig, getSeasonsConfig, saveSeasonsConfig, watchSeasonsConfig } from "./seasonsConfig.js";
 import { loadAcronymsConfig, getAcronymsConfig, saveAcronymsConfig, watchAcronymsConfig } from "./acronymsConfig.js";
 
@@ -1063,6 +1064,102 @@ app.delete("/api/best-times/:id", authMiddleware, async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Failed to delete best time" });
+  }
+});
+
+// ── Time Conversion ──────────────────────────────────────────────────────────
+
+app.post("/api/times/convert", async (req, res) => {
+  try {
+    const { time, fromCourse, toCourse, stroke, distance } = req.body;
+    if (!time || !fromCourse || !toCourse || !stroke || !distance) {
+      return res.status(400).json({ error: "time, fromCourse, toCourse, stroke, and distance are required" });
+    }
+    const result = _convertTime(time, fromCourse, toCourse, stroke, distance);
+    res.json({
+      originalTime: time,
+      convertedTime: result.convertedTime,
+      factor: result.factor,
+      method: result.method,
+    });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// ── Time Standards ───────────────────────────────────────────────────────────
+
+app.get("/api/time-standards", authMiddleware, async (req, res) => {
+  try {
+    const sets = await TimeStandardsSet.find({ userId: req.user.userId }).sort({ name: 1 });
+    res.json(sets);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to fetch time standards" });
+  }
+});
+
+app.post("/api/time-standards", authMiddleware, async (req, res) => {
+  try {
+    const { name, organization, standardLevels, events, entries } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "name is required" });
+    }
+    const set = new TimeStandardsSet({
+      userId: req.user.userId,
+      name,
+      organization: organization || "",
+      standardLevels: standardLevels || ["AAAA", "AAA", "AA", "A", "BB", "B"],
+      events: events || [],
+      entries: entries || [],
+    });
+    await set.save();
+    res.status(201).json(set);
+  } catch (e) {
+    console.error(e);
+    if (e.name === "ValidationError") {
+      const details = Object.values(e.errors).map(err => err.message);
+      return res.status(400).json({ error: "Validation failed", details });
+    }
+    res.status(500).json({ error: "Failed to create time standards set" });
+  }
+});
+
+app.put("/api/time-standards/:id", authMiddleware, async (req, res) => {
+  try {
+    const set = await TimeStandardsSet.findById(req.params.id);
+    if (!set) return res.status(404).json({ error: "Time standards set not found" });
+    if (set.userId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
+
+    const { name, organization, standardLevels, events, entries } = req.body;
+    if (name !== undefined) set.name = name;
+    if (organization !== undefined) set.organization = organization;
+    if (standardLevels !== undefined) set.standardLevels = standardLevels;
+    if (events !== undefined) set.events = events;
+    if (entries !== undefined) set.entries = entries;
+
+    await set.save();
+    res.json(set);
+  } catch (e) {
+    console.error(e);
+    if (e.name === "ValidationError") {
+      const details = Object.values(e.errors).map(err => err.message);
+      return res.status(400).json({ error: "Validation failed", details });
+    }
+    res.status(500).json({ error: "Failed to update time standards set" });
+  }
+});
+
+app.delete("/api/time-standards/:id", authMiddleware, async (req, res) => {
+  try {
+    const set = await TimeStandardsSet.findById(req.params.id);
+    if (!set) return res.status(404).json({ error: "Time standards set not found" });
+    if (set.userId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
+    await TimeStandardsSet.deleteOne({ _id: req.params.id });
+    res.json({ message: "Deleted successfully" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to delete time standards set" });
   }
 });
 

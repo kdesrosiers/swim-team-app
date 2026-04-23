@@ -71,6 +71,12 @@ export default function Layout() {
             </NavLink>
           )}
           <NavLink
+            to="/home/coaches"
+            className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
+          >
+            Coaches Tools
+          </NavLink>
+          <NavLink
             to="/home/config"
             className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
           >
