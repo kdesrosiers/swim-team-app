@@ -549,253 +549,70 @@ LocationSchema.index({ userId: 1 });
 export const Location = mongoose.model("Location", LocationSchema);
 
 /**
- * Comprehensive Swimmer schema for roster management
+ * Embedded best time sub-document
+ */
+const BestTimeSubSchema = new mongoose.Schema(
+  {
+    event:    { type: String, required: true, trim: true },
+    course:   { type: String, enum: ["SCY", "SCM", "LCM"], required: true },
+    time:     { type: Number, required: true },   // raw seconds, e.g. 63.45
+    meetName: { type: String, trim: true },
+    date:     { type: Date },
+    isManual: { type: Boolean, default: true },
+    isBest:   { type: Boolean, default: false },  // auto-flagged server-side
+  },
+  { _id: true }
+);
+
+/**
+ * Swimmer schema — embedded best times, new field names
  */
 const SwimmerSchema = new mongoose.Schema(
   {
-    userId: {
-      type: String,
-      required: true,
-      index: true,
-      trim: true,
-      maxlength: [100, "User ID must be less than 100 characters"],
+    userId: { type: String, required: true, index: true, trim: true },
+    firstName:      { type: String, required: true, trim: true },
+    lastName:       { type: String, required: true, trim: true },
+    dob:            { type: Date, required: true },
+    gender:         { type: String, enum: ["Male", "Female", "Non-binary", "Prefer not to say"] },
+    graduationYear: { type: Number },
+    group:          { type: mongoose.Schema.Types.ObjectId, ref: "RosterGroup" },
+    active:         { type: Boolean, default: true },
+    usaSwimmingId:  { type: String, trim: true },
+    contact: {
+      guardianName:  { type: String, trim: true },
+      guardianEmail: { type: String, trim: true, lowercase: true },
+      phone:         { type: String, trim: true },
+      swimmerEmail:  { type: String, trim: true, lowercase: true },
     },
-    // Basic Information
-    firstName: {
-      type: String,
-      required: [true, "First name is required"],
-      trim: true,
-      maxlength: [100, "First name must be less than 100 characters"],
-    },
-    lastName: {
-      type: String,
-      required: [true, "Last name is required"],
-      trim: true,
-      maxlength: [100, "Last name must be less than 100 characters"],
-    },
-    middleName: {
-      type: String,
-      trim: true,
-      maxlength: [100, "Middle name must be less than 100 characters"],
-    },
-    preferredName: {
-      type: String,
-      trim: true,
-      maxlength: [100, "Preferred name must be less than 100 characters"],
-    },
-    dateOfBirth: {
-      type: Date,
-      required: [true, "Date of birth is required"],
-    },
-    gender: {
-      type: String,
-      required: [true, "Gender is required"],
-      enum: ["Male", "Female", "Other"],
-    },
-
-    // Identification
-    usaSwimmingId: {
-      type: String,
-      trim: true,
-      maxlength: [50, "USA Swimming ID must be less than 50 characters"],
-      sparse: true,
-    },
-    customSwimmerId: {
-      type: String,
-      trim: true,
-      maxlength: [50, "Custom swimmer ID must be less than 50 characters"],
-    },
-
-    // Organization & Grouping
-    rosterGroup: {
-      type: String,
-      required: [true, "Roster group is required"],
-      trim: true,
-      maxlength: [100, "Roster group must be less than 100 characters"],
-    },
-    location: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Location",
-    },
-    memberStatus: {
-      type: String,
-      required: true,
-      enum: ["Active", "Suspended", "Inactive"],
-      default: "Active",
-      index: true,
-    },
-    inactiveDate: {
-      type: Date,
-    },
-
-    // Contact Information
-    email: {
-      type: String,
-      trim: true,
-      lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, "Please provide a valid email address"],
-    },
-    phone: {
-      type: String,
-      trim: true,
-      match: [/^[\d\s\-\+\(\)]*$/, "Please provide a valid phone number"],
-    },
-    emergencyContact: {
-      name: {
-        type: String,
-        trim: true,
-        maxlength: [100, "Emergency contact name must be less than 100 characters"],
-      },
-      phone: {
-        type: String,
-        trim: true,
-        match: [/^[\d\s\-\+\(\)]*$/, "Please provide a valid phone number"],
-      },
-      relationship: {
-        type: String,
-        trim: true,
-        maxlength: [50, "Relationship must be less than 50 characters"],
-      },
-    },
-
-    // Medical & Safety
-    medicalNotes: {
-      type: String,
-      trim: true,
-      maxlength: [1000, "Medical notes must be less than 1000 characters"],
-    },
-    insurance: {
-      provider: {
-        type: String,
-        trim: true,
-        maxlength: [100, "Insurance provider must be less than 100 characters"],
-      },
-      policyNumber: {
-        type: String,
-        trim: true,
-        maxlength: [100, "Policy number must be less than 100 characters"],
-      },
-    },
-    racingStartCertified: {
-      type: Boolean,
-      default: false,
-    },
-
-    // Swimming Profile
-    swimsuitSize: {
-      type: String,
-      trim: true,
-      maxlength: [20, "Swimsuit size must be less than 20 characters"],
-    },
-    joinDate: {
-      type: Date,
-    },
-    notes: {
-      type: String,
-      trim: true,
-      maxlength: [1000, "Notes must be less than 1000 characters"],
-    },
-
-    // Metadata
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
+    notes:     { type: String, trim: true, maxlength: [2000, "Notes must be less than 2000 characters"] },
+    bestTimes: [BestTimeSubSchema],
   },
-  { versionKey: false }
+  { timestamps: true, versionKey: false }
 );
 
-// Indexes
 SwimmerSchema.index({ userId: 1, lastName: 1, firstName: 1 });
-SwimmerSchema.index({ userId: 1, rosterGroup: 1 });
-SwimmerSchema.index({ userId: 1, memberStatus: 1 });
-SwimmerSchema.index({ usaSwimmingId: 1 }, { sparse: true });
-
-// Pre-save middleware to update updatedAt
-SwimmerSchema.pre("save", function (next) {
-  this.updatedAt = Date.now();
-  next();
-});
+SwimmerSchema.index({ userId: 1, group: 1 });
+SwimmerSchema.index({ userId: 1, active: 1 });
 
 export const Swimmer = mongoose.model("Swimmer", SwimmerSchema);
 
-/**
- * BestTime schema - track swimmer best times per event
- */
+// Legacy BestTime collection — kept for migration script access only
 const BestTimeSchema = new mongoose.Schema(
   {
-    swimmer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Swimmer",
-      required: [true, "Swimmer is required"],
-      index: true,
-    },
-    event: {
-      type: String,
-      required: [true, "Event is required"],
-      trim: true,
-      maxlength: [100, "Event must be less than 100 characters"],
-    },
-    stroke: {
-      type: String,
-      required: [true, "Stroke is required"],
-      enum: ["Freestyle", "Backstroke", "Breaststroke", "Butterfly", "IM"],
-    },
-    distance: {
-      type: Number,
-      required: [true, "Distance is required"],
-      min: [25, "Distance must be at least 25"],
-      max: [4000, "Distance must be less than 4000"],
-    },
-    course: {
-      type: String,
-      required: [true, "Course is required"],
-      enum: ["SCY", "SCM", "LCM"],
-    },
-    time: {
-      type: Number,
-      required: [true, "Time is required"],
-      min: [0, "Time cannot be negative"],
-    },
-    timeFormatted: {
-      type: String,
-      trim: true,
-    },
-    meetName: {
-      type: String,
-      trim: true,
-      maxlength: [200, "Meet name must be less than 200 characters"],
-    },
-    meetDate: {
-      type: Date,
-      required: [true, "Meet date is required"],
-    },
-    ageAtMeet: {
-      type: Number,
-      min: [0, "Age cannot be negative"],
-    },
-    timeStandard: {
-      type: String,
-      trim: true,
-      maxlength: [20, "Time standard must be less than 20 characters"],
-    },
-    improvements: {
-      type: Number,
-      default: 0,
-    },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
+    swimmer:       { type: mongoose.Schema.Types.ObjectId, ref: "Swimmer", index: true },
+    event:         { type: String, trim: true },
+    stroke:        { type: String },
+    distance:      { type: Number },
+    course:        { type: String, enum: ["SCY", "SCM", "LCM"] },
+    time:          { type: Number },
+    timeFormatted: { type: String },
+    meetName:      { type: String },
+    meetDate:      { type: Date },
+    ageAtMeet:     { type: Number },
+    timeStandard:  { type: String },
   },
-  { versionKey: false }
+  { versionKey: false, strict: false }
 );
-
-// Indexes
-BestTimeSchema.index({ swimmer: 1, event: 1, course: 1 });
-BestTimeSchema.index({ meetDate: 1 });
-
-// Pre-save middleware
-BestTimeSchema.pre("save", function (next) {
-  this.updatedAt = Date.now();
-  next();
-});
 
 export const BestTime = mongoose.model("BestTime", BestTimeSchema);
 

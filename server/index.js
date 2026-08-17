@@ -4,6 +4,22 @@ import dotenv from "dotenv";
 import { connectMongo } from "./db.js";
 // ⬇️ Alias the export so the name matches what you use below
 import { Practice as PracticeModel, User, Feedback, Swimmer, RosterGroup, Location, BestTime, TimeStandardsSet } from "./models.js";
+
+// ── Swimmer helper ────────────────────────────────────────────────────────────
+/** After any mutation to swimmer.bestTimes, re-flag isBest per event+course. */
+function flagBestTimes(swimmer) {
+  const groups = {};
+  swimmer.bestTimes.forEach((t, i) => {
+    const key = `${t.event}||${t.course}`;
+    if (!groups[key] || t.time < groups[key].time) {
+      groups[key] = { time: t.time, idx: i };
+    }
+  });
+  swimmer.bestTimes.forEach((t, i) => {
+    const key = `${t.event}||${t.course}`;
+    t.isBest = groups[key]?.idx === i;
+  });
+}
 import { hashPassword, comparePassword, generateToken, authMiddleware, requireAdmin } from "./auth.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -717,41 +733,24 @@ app.delete("/api/locations/:id", authMiddleware, async (req, res) => {
 
 // ========== SWIMMER ENDPOINTS ==========
 
-// GET all swimmers with filtering
+// GET all swimmers
 app.get("/api/swimmers", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { rosterGroup, location, memberStatus, search, sortBy, sortOrder } = req.query;
+    const { group, active, search } = req.query;
 
-    let query = { userId };
-
-    if (rosterGroup) query.rosterGroup = rosterGroup;
-    if (location) query.location = location;
-    if (memberStatus) query.memberStatus = memberStatus;
+    const query = { userId };
+    if (group) query.group = group;
+    if (active !== undefined) query.active = active === "true";
 
     if (search) {
-      const searchRegex = new RegExp(search, "i");
-      query.$or = [
-        { firstName: searchRegex },
-        { lastName: searchRegex },
-        { preferredName: searchRegex },
-      ];
+      const re = new RegExp(search, "i");
+      query.$or = [{ firstName: re }, { lastName: re }];
     }
 
-    let swimmers = await Swimmer.find(query)
-      .populate("rosterGroup")
-      .populate("location");
-
-    // Sort
-    const sortField = sortBy || "lastName";
-    const order = sortOrder === "desc" ? -1 : 1;
-    swimmers.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      if (aVal < bVal) return -1 * order;
-      if (aVal > bVal) return 1 * order;
-      return 0;
-    });
+    const swimmers = await Swimmer.find(query)
+      .populate("group", "name color")
+      .sort({ lastName: 1, firstName: 1 });
 
     res.json(swimmers);
   } catch (e) {
@@ -760,20 +759,13 @@ app.get("/api/swimmers", authMiddleware, async (req, res) => {
   }
 });
 
-// GET single swimmer
+// GET single swimmer (full doc with embedded bestTimes)
 app.get("/api/swimmers/:id", authMiddleware, async (req, res) => {
   try {
-    const swimmer = await Swimmer.findById(req.params.id)
-      .populate("rosterGroup")
-      .populate("location");
+    const swimmer = await Swimmer.findById(req.params.id).populate("group", "name color");
 
-    if (!swimmer) {
-      return res.status(404).json({ error: "Swimmer not found" });
-    }
-
-    if (swimmer.userId !== req.user.userId) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
+    if (!swimmer) return res.status(404).json({ error: "Swimmer not found" });
+    if (swimmer.userId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
 
     res.json(swimmer);
   } catch (e) {
@@ -785,285 +777,150 @@ app.get("/api/swimmers/:id", authMiddleware, async (req, res) => {
 // CREATE swimmer
 app.post("/api/swimmers", authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.userId;
-    const {
-      firstName,
-      lastName,
-      middleName,
-      preferredName,
-      dateOfBirth,
-      gender,
-      usaSwimmingId,
-      customSwimmerId,
-      rosterGroup,
-      location,
-      memberStatus,
-      email,
-      phone,
-      emergencyContact,
-      medicalNotes,
-      insurance,
-      racingStartCertified,
-      swimsuitSize,
-      joinDate,
-      notes,
-    } = req.body;
+    const { firstName, lastName, dob, gender, graduationYear, group, usaSwimmingId, contact, notes } = req.body;
 
-    // Validation
-    if (!firstName || !lastName || !dateOfBirth || !gender || !rosterGroup) {
-      return res.status(400).json({
-        error: "First name, last name, date of birth, gender, and roster group are required",
-      });
+    if (!firstName || !lastName || !dob) {
+      return res.status(400).json({ error: "firstName, lastName, and dob are required" });
     }
 
     const swimmer = new Swimmer({
-      userId,
-      firstName,
-      lastName,
-      middleName: middleName || undefined,
-      preferredName: preferredName || undefined,
-      dateOfBirth,
-      gender,
+      userId: req.user.userId,
+      firstName, lastName, dob, gender,
+      graduationYear: graduationYear || undefined,
+      group: group || undefined,
       usaSwimmingId: usaSwimmingId || undefined,
-      customSwimmerId: customSwimmerId || undefined,
-      rosterGroup,
-      location: location || undefined,
-      memberStatus: memberStatus || "Active",
-      email: email || undefined,
-      phone: phone || undefined,
-      emergencyContact: emergencyContact || undefined,
-      medicalNotes: medicalNotes || undefined,
-      insurance: insurance || undefined,
-      racingStartCertified: racingStartCertified || false,
-      swimsuitSize: swimsuitSize || undefined,
-      joinDate: joinDate || undefined,
+      contact: contact || undefined,
       notes: notes || undefined,
     });
 
     await swimmer.save();
-    await swimmer.populate("rosterGroup location");
+    await swimmer.populate("group", "name color");
     res.status(201).json(swimmer);
   } catch (e) {
     console.error(e);
     if (e.name === "ValidationError") {
-      const errors = Object.values(e.errors).map(err => err.message);
-      return res.status(400).json({ error: "Validation failed", details: errors });
+      return res.status(400).json({ error: "Validation failed", details: Object.values(e.errors).map(err => err.message) });
     }
     res.status(500).json({ error: "Failed to create swimmer" });
   }
 });
 
-// UPDATE swimmer
+// UPDATE swimmer info / contact / notes (NOT bestTimes)
 app.put("/api/swimmers/:id", authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.userId;
     const swimmer = await Swimmer.findById(req.params.id);
+    if (!swimmer) return res.status(404).json({ error: "Swimmer not found" });
+    if (swimmer.userId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
 
-    if (!swimmer) {
-      return res.status(404).json({ error: "Swimmer not found" });
-    }
-
-    if (swimmer.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-
-    // Update all fields
-    const updates = req.body;
-    Object.keys(updates).forEach(key => {
-      if (key !== "userId" && key !== "_id" && key !== "createdAt") {
-        swimmer[key] = updates[key];
-      }
+    const allowed = ["firstName", "lastName", "dob", "gender", "graduationYear", "group", "active", "usaSwimmingId", "contact", "notes"];
+    allowed.forEach(key => {
+      if (key in req.body) swimmer[key] = req.body[key];
     });
 
     await swimmer.save();
-    await swimmer.populate("rosterGroup location");
+    await swimmer.populate("group", "name color");
     res.json(swimmer);
   } catch (e) {
     console.error(e);
     if (e.name === "ValidationError") {
-      const errors = Object.values(e.errors).map(err => err.message);
-      return res.status(400).json({ error: "Validation failed", details: errors });
+      return res.status(400).json({ error: "Validation failed", details: Object.values(e.errors).map(err => err.message) });
     }
     res.status(500).json({ error: "Failed to update swimmer" });
   }
 });
 
-// DELETE swimmer (soft delete by setting to inactive)
+// DELETE swimmer (soft delete)
 app.delete("/api/swimmers/:id", authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.userId;
     const swimmer = await Swimmer.findById(req.params.id);
+    if (!swimmer) return res.status(404).json({ error: "Swimmer not found" });
+    if (swimmer.userId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
 
-    if (!swimmer) {
-      return res.status(404).json({ error: "Swimmer not found" });
-    }
-
-    if (swimmer.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-
-    // Soft delete
-    swimmer.memberStatus = "Inactive";
-    swimmer.inactiveDate = new Date();
+    swimmer.active = false;
     await swimmer.save();
-
-    res.json({ message: "Swimmer deleted successfully" });
+    res.json({ message: "Swimmer deactivated" });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Failed to delete swimmer" });
   }
 });
 
-// ========== BEST TIME ENDPOINTS ==========
+// ========== EMBEDDED BEST TIME ENDPOINTS ==========
 
-// GET best times for a swimmer
-app.get("/api/swimmers/:swimmerId/best-times", authMiddleware, async (req, res) => {
+// POST /api/swimmers/:id/times — add a time entry
+app.post("/api/swimmers/:id/times", authMiddleware, async (req, res) => {
   try {
-    const swimmerId = req.params.swimmerId;
+    const swimmer = await Swimmer.findById(req.params.id);
+    if (!swimmer) return res.status(404).json({ error: "Swimmer not found" });
+    if (swimmer.userId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
 
-    // Verify ownership
-    const swimmer = await Swimmer.findById(swimmerId);
-    if (!swimmer) {
-      return res.status(404).json({ error: "Swimmer not found" });
+    const { event, course, time, meetName, date } = req.body;
+    if (!event || !course || time == null) {
+      return res.status(400).json({ error: "event, course, and time are required" });
     }
 
-    if (swimmer.userId !== req.user.userId) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-
-    const bestTimes = await BestTime.find({ swimmer: swimmerId }).sort({
-      stroke: 1,
-      distance: 1,
-      course: 1,
-    });
-
-    res.json(bestTimes);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Failed to fetch best times" });
-  }
-});
-
-// CREATE best time
-app.post("/api/swimmers/:swimmerId/best-times", authMiddleware, async (req, res) => {
-  try {
-    const swimmerId = req.params.swimmerId;
-    const { event, stroke, distance, course, time, meetName, meetDate, timeStandard } = req.body;
-
-    // Verify ownership
-    const swimmer = await Swimmer.findById(swimmerId);
-    if (!swimmer) {
-      return res.status(404).json({ error: "Swimmer not found" });
-    }
-
-    if (swimmer.userId !== req.user.userId) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-
-    // Validation
-    if (!event || !stroke || !distance || !course || !time || !meetDate) {
-      return res.status(400).json({ error: "All fields are required" });
-    }
-
-    // Calculate age at meet
-    const meetDateObj = new Date(meetDate);
-    const dob = new Date(swimmer.dateOfBirth);
-    let ageAtMeet = meetDateObj.getFullYear() - dob.getFullYear();
-    const monthDiff = meetDateObj.getMonth() - dob.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && meetDateObj.getDate() < dob.getDate())) {
-      ageAtMeet--;
-    }
-
-    // Format time
-    const minutes = Math.floor(time / 60);
-    const seconds = (time % 60).toFixed(2);
-    const timeFormatted = `${minutes}:${seconds.padStart(5, "0")}`;
-
-    const bestTime = new BestTime({
-      swimmer: swimmerId,
-      event,
-      stroke,
-      distance,
-      course,
-      time,
-      timeFormatted,
-      meetName: meetName || undefined,
-      meetDate: meetDateObj,
-      ageAtMeet,
-      timeStandard: timeStandard || undefined,
-    });
-
-    await bestTime.save();
-    res.status(201).json(bestTime);
+    swimmer.bestTimes.push({ event, course, time, meetName, date, isManual: true });
+    flagBestTimes(swimmer);
+    await swimmer.save();
+    await swimmer.populate("group", "name color");
+    res.status(201).json(swimmer);
   } catch (e) {
     console.error(e);
     if (e.name === "ValidationError") {
-      const errors = Object.values(e.errors).map(err => err.message);
-      return res.status(400).json({ error: "Validation failed", details: errors });
+      return res.status(400).json({ error: "Validation failed", details: Object.values(e.errors).map(err => err.message) });
     }
-    res.status(500).json({ error: "Failed to create best time" });
+    res.status(500).json({ error: "Failed to add time" });
   }
 });
 
-// UPDATE best time
-app.put("/api/best-times/:id", authMiddleware, async (req, res) => {
+// PUT /api/swimmers/:id/times/:timeId — edit a time entry
+app.put("/api/swimmers/:id/times/:timeId", authMiddleware, async (req, res) => {
   try {
-    const bestTime = await BestTime.findById(req.params.id).populate("swimmer");
+    const swimmer = await Swimmer.findById(req.params.id);
+    if (!swimmer) return res.status(404).json({ error: "Swimmer not found" });
+    if (swimmer.userId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
 
-    if (!bestTime) {
-      return res.status(404).json({ error: "Best time not found" });
-    }
+    const entry = swimmer.bestTimes.id(req.params.timeId);
+    if (!entry) return res.status(404).json({ error: "Time entry not found" });
 
-    if (bestTime.swimmer.userId !== req.user.userId) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
+    const { event, course, time, meetName, date } = req.body;
+    if (event !== undefined) entry.event = event;
+    if (course !== undefined) entry.course = course;
+    if (time !== undefined) entry.time = time;
+    if (meetName !== undefined) entry.meetName = meetName;
+    if (date !== undefined) entry.date = date;
 
-    const { event, stroke, distance, course, time, meetName, meetDate, timeStandard } = req.body;
-
-    if (event) bestTime.event = event;
-    if (stroke) bestTime.stroke = stroke;
-    if (distance) bestTime.distance = distance;
-    if (course) bestTime.course = course;
-    if (time) {
-      bestTime.time = time;
-      const minutes = Math.floor(time / 60);
-      const seconds = (time % 60).toFixed(2);
-      bestTime.timeFormatted = `${minutes}:${seconds.padStart(5, "0")}`;
-    }
-    if (meetName !== undefined) bestTime.meetName = meetName;
-    if (meetDate) bestTime.meetDate = new Date(meetDate);
-    if (timeStandard !== undefined) bestTime.timeStandard = timeStandard;
-
-    await bestTime.save();
-    res.json(bestTime);
+    flagBestTimes(swimmer);
+    await swimmer.save();
+    await swimmer.populate("group", "name color");
+    res.json(swimmer);
   } catch (e) {
     console.error(e);
     if (e.name === "ValidationError") {
-      const errors = Object.values(e.errors).map(err => err.message);
-      return res.status(400).json({ error: "Validation failed", details: errors });
+      return res.status(400).json({ error: "Validation failed", details: Object.values(e.errors).map(err => err.message) });
     }
-    res.status(500).json({ error: "Failed to update best time" });
+    res.status(500).json({ error: "Failed to update time" });
   }
 });
 
-// DELETE best time
-app.delete("/api/best-times/:id", authMiddleware, async (req, res) => {
+// DELETE /api/swimmers/:id/times/:timeId — delete a time entry
+app.delete("/api/swimmers/:id/times/:timeId", authMiddleware, async (req, res) => {
   try {
-    const bestTime = await BestTime.findById(req.params.id).populate("swimmer");
+    const swimmer = await Swimmer.findById(req.params.id);
+    if (!swimmer) return res.status(404).json({ error: "Swimmer not found" });
+    if (swimmer.userId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
 
-    if (!bestTime) {
-      return res.status(404).json({ error: "Best time not found" });
-    }
+    const entry = swimmer.bestTimes.id(req.params.timeId);
+    if (!entry) return res.status(404).json({ error: "Time entry not found" });
 
-    if (bestTime.swimmer.userId !== req.user.userId) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-
-    await BestTime.deleteOne({ _id: req.params.id });
-    res.json({ message: "Best time deleted successfully" });
+    entry.deleteOne();
+    flagBestTimes(swimmer);
+    await swimmer.save();
+    await swimmer.populate("group", "name color");
+    res.json(swimmer);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: "Failed to delete best time" });
+    res.status(500).json({ error: "Failed to delete time" });
   }
 });
 

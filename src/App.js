@@ -10,7 +10,7 @@ import ConfigHub from './pages/ConfigHub';
 import ConfigMaintenance from './pages/ConfigMaintenance';
 import SeasonsMaintenance from './pages/SeasonsMaintenance';
 import FeedbackManagement from './pages/FeedbackManagement';
-import SwimmerRoster from './pages/SwimmerRoster';
+import SwimmersPage from './pages/SwimmersPage';
 import UserSettings from './pages/UserSettings';
 import CoachesTools from './pages/CoachesTools';
 import TimeStandards from './pages/TimeStandards';
@@ -67,7 +67,7 @@ function App() {
               <Route index element={<Home />} />
               <Route path="builder" element={<PracticeBuilder />} />
               <Route path="practices" element={<PracticeLibrary />} />
-              <Route path="swimmers" element={<SwimmerRoster />} />
+              <Route path="swimmers" element={<SwimmersPage />} />
               <Route path="feedback" element={<FeedbackManagement />} />
               <Route path="config" element={<ConfigHub />} />
               <Route path="config/rosters" element={<ConfigMaintenance />} />
