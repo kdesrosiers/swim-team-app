@@ -41,35 +41,45 @@ import { CSS } from "@dnd-kit/utilities";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function nextStartFor(config, roster, yyyyMmDd) {
-  // Uses per-roster schedule: practiceSchedule[roster][dayKey] -> "HH:MM" or "OFF"
-  if (!config?.practiceSchedule || !roster || !yyyyMmDd) return null;
-  const week = config.practiceSchedule[roster];
-  if (!week) return null;
-  const d = new Date(`${yyyyMmDd}T00:00:00`);
-  const key = DOW[d.getDay()];
-  const v = week[key];
-  if (!v || v === "OFF") return null;
-  return v; // "HH:MM"
-}
-
-function findSeasonByDate(seasons, yyyyMmDd) {
-  // Find which season the date falls in
+function getActiveSeason(seasons, yyyyMmDd) {
   if (!seasons || !Array.isArray(seasons) || !yyyyMmDd) return null;
-
   const date = new Date(yyyyMmDd);
   for (const season of seasons) {
     if (!season.startDate || !season.endDate) continue;
-
-    const startDate = new Date(season.startDate);
-    const endDate = new Date(season.endDate);
-
-    if (date >= startDate && date <= endDate) {
-      return season.title;
+    if (date >= new Date(season.startDate) && date <= new Date(season.endDate)) {
+      return season;
     }
   }
-
   return null;
+}
+
+function findSeasonByDate(seasons, yyyyMmDd) {
+  return getActiveSeason(seasons, yyyyMmDd)?.title ?? null;
+}
+
+function nextStartFor(seasons, config, roster, yyyyMmDd) {
+  if (!roster || !yyyyMmDd) return null;
+  const d = new Date(`${yyyyMmDd}T00:00:00`);
+  const key = DOW[d.getDay()];
+
+  // Season schedule takes priority
+  const activeSeason = getActiveSeason(seasons, yyyyMmDd);
+  const seasonDay = activeSeason?.schedule?.[roster]?.[key];
+  if (seasonDay && seasonDay !== "OFF") return seasonDay;
+
+  // Fall back to roster config schedule
+  const week = config?.practiceSchedule?.[roster];
+  if (!week) return null;
+  const v = week[key];
+  if (!v || v === "OFF") return null;
+  return v;
+}
+
+function getPoolForRoster(seasons, config, roster, yyyyMmDd) {
+  const activeSeason = getActiveSeason(seasons, yyyyMmDd);
+  const seasonPool = activeSeason?.schedule?.[roster]?.pool;
+  if (seasonPool) return seasonPool;
+  return config?.defaultPool ?? "SCM";
 }
 
 // Find the index of the "Warm Up" section (case-insensitive)
@@ -162,11 +172,6 @@ function PracticeBuilder() {
           : rosters[0];
 
         setSelectedRoster(initial);
-
-        // initial Start from today's weekday for the initial roster
-        const todayKey = DOW[new Date().getDay()];
-        const maybe = cfg?.practiceSchedule?.[initial]?.[todayKey];
-        if (maybe && maybe !== "OFF") setStartTime(maybe);
       } catch (e) {
         console.error("Failed to load config", e);
         // sensible defaults if config not reachable
@@ -249,11 +254,15 @@ function PracticeBuilder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingPractice]);
 
-  // When date or roster changes and we have config, adjust startTime from schedule (if defined)
+  // When date, roster, config, or seasons change, update start time and pool from the active season
+  // (falls back to roster config when no season is active)
   useEffect(() => {
-    const st = nextStartFor(config, selectedRoster, practiceDate);
+    const st = nextStartFor(seasons, config, selectedRoster, practiceDate);
     if (st) setStartTime(st);
-  }, [config, selectedRoster, practiceDate]);
+    if (!editMode) {
+      setPool(getPoolForRoster(seasons, config, selectedRoster, practiceDate));
+    }
+  }, [seasons, config, selectedRoster, practiceDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!config?.warmups || !selectedRoster) return;

@@ -39,13 +39,18 @@ function validateConfig(cfg) {
         errors.push("every roster in `rosters` must be a non-empty string");
     }
 
-    // ✅ NEW: defaultRoster must be a member of rosters if provided
+    // defaultRoster must be a member of rosters if provided
     if (cfg.defaultRoster != null) {
         if (typeof cfg.defaultRoster !== "string") {
             errors.push("`defaultRoster` must be a string");
         } else if (Array.isArray(cfg.rosters) && !cfg.rosters.includes(cfg.defaultRoster)) {
             errors.push("`defaultRoster` must be one of `rosters`");
         }
+    }
+
+    // defaultPool: optional fallback pool type
+    if (cfg.defaultPool != null && !["SCY", "SCM", "LCM"].includes(cfg.defaultPool)) {
+        errors.push("`defaultPool` must be SCY, SCM, or LCM");
     }
     // warmups: object<string, string>
     if (cfg?.warmups == null || typeof cfg.warmups !== "object") {

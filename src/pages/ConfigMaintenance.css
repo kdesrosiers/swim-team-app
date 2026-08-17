@@ -207,6 +207,52 @@
   font-size: 0.9375rem;
 }
 
+.roster-name-input {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  background: transparent;
+  flex: 1;
+  min-width: 0;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: inherit;
+}
+
+.roster-name-input:hover {
+  border-color: var(--border);
+  background: white;
+}
+
+.roster-name-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: white;
+}
+
+.add-roster-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.add-roster-input {
+  padding: var(--space-sm) var(--space-md);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  width: 200px;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.add-roster-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
 .warmup-textarea {
   width: 100%;
   padding: var(--space-md);
@@ -462,4 +508,152 @@
   .seasons-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ========== Season Schedule Table ========== */
+.seasons-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  margin-top: var(--space-lg);
+}
+
+.season-card--expanded {
+  /* full-width card, no grid column constraint */
+  width: 100%;
+}
+
+.season-info-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.season-info-row .form-group {
+  flex: 1 1 180px;
+  margin-bottom: 0;
+}
+
+.form-group--duration {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.season-duration {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  padding: var(--space-sm) 0;
+}
+
+.season-schedule-section {
+  border-top: 2px solid var(--border);
+  padding-top: var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+.season-schedule-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gray-800);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.season-schedule-hint {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+  margin: 0 0 var(--space-md) 0;
+}
+
+.season-schedule-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.season-schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: max-content;
+}
+
+.season-schedule-row--header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.season-schedule-cell {
+  display: flex;
+  align-items: center;
+}
+
+.season-schedule-cell--roster {
+  width: 130px;
+  min-width: 130px;
+}
+
+.season-schedule-cell--pool {
+  width: 72px;
+  min-width: 72px;
+}
+
+.season-schedule-cell--day {
+  width: 72px;
+  min-width: 72px;
+}
+
+.roster-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 126px;
+}
+
+.pool-select-sm {
+  width: 100%;
+  padding: 4px 2px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.pool-select-sm:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.time-input-sm {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  text-align: center;
+  background: white;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.time-input-sm:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.time-input-sm::placeholder {
+  color: var(--gray-400);
 }

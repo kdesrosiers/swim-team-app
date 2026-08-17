@@ -2,25 +2,30 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import "./ConfigMaintenance.css"; // Reuse existing styles
+import "./ConfigMaintenance.css";
 import { getSeasons, updateSeasons } from "../api/seasons";
+import { getConfig } from "../api/config";
+
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const POOL_OPTIONS = ["SCY", "SCM", "LCM"];
 
 function SeasonsMaintenance() {
   const navigate = useNavigate();
   const [config, setConfig] = useState(null);
+  const [rosters, setRosters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Load seasons config on mount
   useEffect(() => {
-    loadSeasons();
+    loadAll();
   }, []);
 
-  async function loadSeasons() {
+  async function loadAll() {
     try {
       setLoading(true);
-      const cfg = await getSeasons();
+      const [cfg, rosterCfg] = await Promise.all([getSeasons(), getConfig()]);
       setConfig(cfg || { seasons: [] });
+      setRosters(Array.isArray(rosterCfg?.rosters) ? rosterCfg.rosters : []);
     } catch (e) {
       console.error("Failed to load seasons", e);
       toast.error("Failed to load seasons configuration");
@@ -52,6 +57,7 @@ function SeasonsMaintenance() {
         title: "",
         startDate: "",
         endDate: "",
+        schedule: {},
       },
     ];
     setConfig({ ...config, seasons: newSeasons });
@@ -68,6 +74,28 @@ function SeasonsMaintenance() {
   function updateSeason(index, field, value) {
     const newSeasons = [...config.seasons];
     newSeasons[index] = { ...newSeasons[index], [field]: value };
+    setConfig({ ...config, seasons: newSeasons });
+  }
+
+  function updateSeasonRosterPool(seasonIdx, roster, pool) {
+    const newSeasons = [...config.seasons];
+    const season = { ...newSeasons[seasonIdx] };
+    season.schedule = {
+      ...season.schedule,
+      [roster]: { ...season.schedule?.[roster], pool },
+    };
+    newSeasons[seasonIdx] = season;
+    setConfig({ ...config, seasons: newSeasons });
+  }
+
+  function updateSeasonScheduleDay(seasonIdx, roster, day, value) {
+    const newSeasons = [...config.seasons];
+    const season = { ...newSeasons[seasonIdx] };
+    season.schedule = {
+      ...season.schedule,
+      [roster]: { ...season.schedule?.[roster], [day]: value },
+    };
+    newSeasons[seasonIdx] = season;
     setConfig({ ...config, seasons: newSeasons });
   }
 
@@ -127,9 +155,9 @@ function SeasonsMaintenance() {
             </button>
           </div>
         ) : (
-          <div className="seasons-grid">
+          <div className="seasons-list">
             {config.seasons.map((season, idx) => (
-              <div key={season.id || idx} className="season-card">
+              <div key={season.id || idx} className="season-card season-card--expanded">
                 <div className="season-card-header">
                   <h3>Season {idx + 1}</h3>
                   <button
@@ -141,42 +169,97 @@ function SeasonsMaintenance() {
                   </button>
                 </div>
 
-                <div className="form-group">
-                  <label>Title</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={season.title || ""}
-                    onChange={(e) => updateSeason(idx, "title", e.target.value)}
-                    placeholder="e.g., Fall 2024"
-                  />
+                {/* Basic season info */}
+                <div className="season-info-row">
+                  <div className="form-group">
+                    <label>Title</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={season.title || ""}
+                      onChange={(e) => updateSeason(idx, "title", e.target.value)}
+                      placeholder="e.g., Fall 2025"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Start Date</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={season.startDate || ""}
+                      onChange={(e) => updateSeason(idx, "startDate", e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>End Date</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={season.endDate || ""}
+                      onChange={(e) => updateSeason(idx, "endDate", e.target.value)}
+                    />
+                  </div>
+                  {season.startDate && season.endDate && (
+                    <div className="form-group form-group--duration">
+                      <label>Duration</label>
+                      <span className="season-duration">
+                        {formatDateRange(season.startDate, season.endDate)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="form-group">
-                  <label>Start Date</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={season.startDate || ""}
-                    onChange={(e) => updateSeason(idx, "startDate", e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>End Date</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={season.endDate || ""}
-                    onChange={(e) => updateSeason(idx, "endDate", e.target.value)}
-                  />
-                </div>
-
-                {season.startDate && season.endDate && (
-                  <div className="season-summary">
-                    <small>
-                      Duration: {formatDateRange(season.startDate, season.endDate)}
-                    </small>
+                {/* Per-roster practice schedule */}
+                {rosters.length > 0 && (
+                  <div className="season-schedule-section">
+                    <h4 className="season-schedule-heading">Practice Schedule</h4>
+                    <p className="season-schedule-hint">
+                      Set practice start times and pool type per group. The practice builder will use these when the practice date falls within this season.
+                    </p>
+                    <div className="season-schedule-table">
+                      {/* Header row */}
+                      <div className="season-schedule-row season-schedule-row--header">
+                        <div className="season-schedule-cell season-schedule-cell--roster">Group</div>
+                        <div className="season-schedule-cell season-schedule-cell--pool">Pool</div>
+                        {DOW.map(day => (
+                          <div key={day} className="season-schedule-cell season-schedule-cell--day">{day}</div>
+                        ))}
+                      </div>
+                      {/* One row per roster */}
+                      {rosters.map(roster => {
+                        const rSched = season.schedule?.[roster] || {};
+                        return (
+                          <div key={roster} className="season-schedule-row">
+                            <div className="season-schedule-cell season-schedule-cell--roster">
+                              <span className="roster-label">{roster}</span>
+                            </div>
+                            <div className="season-schedule-cell season-schedule-cell--pool">
+                              <select
+                                className="pool-select-sm"
+                                value={rSched.pool || ""}
+                                onChange={(e) => updateSeasonRosterPool(idx, roster, e.target.value)}
+                              >
+                                <option value="">--</option>
+                                {POOL_OPTIONS.map(p => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {DOW.map(day => (
+                              <div key={day} className="season-schedule-cell season-schedule-cell--day">
+                                <input
+                                  type="text"
+                                  className="time-input-sm"
+                                  placeholder="OFF"
+                                  value={rSched[day] || ""}
+                                  onChange={(e) => updateSeasonScheduleDay(idx, roster, day, e.target.value)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

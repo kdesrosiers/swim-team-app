@@ -401,9 +401,7 @@ const UserSchema = new mongoose.Schema(
   { versionKey: false }
 );
 
-// Indexes for performance
-UserSchema.index({ email: 1 });
-UserSchema.index({ username: 1 });
+// email and username are already indexed via unique: true above
 UserSchema.index({ "subscription.status": 1 });
 
 // Update the updatedAt timestamp before saving
@@ -465,7 +463,6 @@ const RosterGroupSchema = new mongoose.Schema(
     userId: {
       type: String,
       required: true,
-      index: true,
       trim: true,
       maxlength: [100, "User ID must be less than 100 characters"],
     },
@@ -510,7 +507,6 @@ const LocationSchema = new mongoose.Schema(
     userId: {
       type: String,
       required: true,
-      index: true,
       trim: true,
       maxlength: [100, "User ID must be less than 100 characters"],
     },

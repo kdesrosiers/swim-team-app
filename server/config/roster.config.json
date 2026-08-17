@@ -1,75 +1,76 @@
 {
-  "defaultRoster": "Gold/Platinum",
+  "defaultRoster": "Senior 3",
+  "defaultPool": "SCM",
   "rosters": [
-    "Yellow",
-    "Blue",
-    "White",
-    "Bronze",
-    "Silver",
-    "Gold/Platinum"
+    "Prep",
+    "Junior 1",
+    "Junior 2",
+    "Senior 1",
+    "Senior 2",
+    "Senior 3"
   ],
   "warmups": {
-    "Yellow": "100 swim @ 13:40\n4 x 100 K/S/D/S @ 2:00\n4 x 50 build @ :50",
-    "Blue": "150 swim @ 5:00\n4 x 50 Kick/Drill @ 2:00\n2 x 50 build @ 1:30",
-    "White": "200 swim @ 5:00 \n200 IM Kick/Drill @ 5:00\n4 x 50 build @ 1:15",
-    "Bronze": "300 swim @ 10:00\n200 IM K/S @ 5:00\n4 x 50 build @ 1:00",
-    "Silver": "300 swim @ 10:00\n4 x 100 K/S/D/S @ 2:00\n4 x 50 build @ :50",
-    "Gold/Platinum": "400 swim @ 13:40\n4 x 100 K/S/D/S @ 2:00\n4 x 50 build @ :50"
+    "Prep": "",
+    "Junior 1": "",
+    "Junior 2": "300 swim @ 10:00\n200 IM K/S @ 5:00\n4 x 50 build @ 1:00",
+    "Senior 1": "",
+    "Senior 2": "400 swim @ 13:40\n4 x 100 K/S/D/S @ 2:00\n4 x 50 build @ :50",
+    "Senior 3": "400 swim @ 13:40\n4 x 100 K/S/D/S @ 2:00\n4 x 50 build @ :50"
   },
   "practiceSchedule": {
-    "Yellow": {
-      "Mon": "17:30",
-      "Tue": "OFF",
-      "Wed": "17:30",
-      "Thu": "OFF",
-      "Fri": "18:30",
-      "Sat": "OFF",
-      "Sun": "08:30"
-    },
-    "Blue": {
-      "Mon": "17:30",
-      "Tue": "OFF",
-      "Wed": "OFF",
-      "Thu": "17:30",
-      "Fri": "18:30",
-      "Sat": "OFF",
-      "Sun": "08:30"
-    },
-    "White": {
-      "Mon": "18:30",
-      "Tue": "OFF",
-      "Wed": "18:30",
-      "Thu": "OFF",
-      "Fri": "18:30",
-      "Sat": "OFF",
-      "Sun": "08:30"
-    },
-    "Bronze": {
-      "Mon": "19:30",
-      "Tue": "OFF",
-      "Wed": "19:30",
-      "Thu": "OFF",
-      "Fri": "20:00",
-      "Sat": "OFF",
-      "Sun": "06:30"
-    },
-    "Silver": {
+    "Prep": {
       "Mon": "OFF",
-      "Tue": "18:30",
+      "Tue": "OFF",
       "Wed": "OFF",
-      "Thu": "18:30",
-      "Fri": "19:30",
-      "Sat": "OFF",
-      "Sun": "15:00"
-    },
-    "Gold/Platinum": {
-      "Mon": "18:30",
-      "Tue": "19:00",
-      "Wed": "18:30",
-      "Thu": "19:00",
+      "Thu": "OFF",
       "Fri": "OFF",
       "Sat": "OFF",
-      "Sun": "06:30"
+      "Sun": "OFF"
+    },
+    "Junior 1": {
+      "Mon": "OFF",
+      "Tue": "OFF",
+      "Wed": "OFF",
+      "Thu": "OFF",
+      "Fri": "OFF",
+      "Sat": "OFF",
+      "Sun": "OFF"
+    },
+    "Junior 2": {
+      "Mon": "OFF",
+      "Tue": "OFF",
+      "Wed": "OFF",
+      "Thu": "OFF",
+      "Fri": "OFF",
+      "Sat": "OFF",
+      "Sun": "OFF"
+    },
+    "Senior 1": {
+      "Mon": "OFF",
+      "Tue": "OFF",
+      "Wed": "OFF",
+      "Thu": "OFF",
+      "Fri": "OFF",
+      "Sat": "OFF",
+      "Sun": "OFF"
+    },
+    "Senior 2": {
+      "Mon": "OFF",
+      "Tue": "OFF",
+      "Wed": "OFF",
+      "Thu": "OFF",
+      "Fri": "OFF",
+      "Sat": "OFF",
+      "Sun": "OFF"
+    },
+    "Senior 3": {
+      "Mon": "OFF",
+      "Tue": "OFF",
+      "Wed": "OFF",
+      "Thu": "OFF",
+      "Fri": "OFF",
+      "Sat": "OFF",
+      "Sun": "OFF"
     }
   }
 }

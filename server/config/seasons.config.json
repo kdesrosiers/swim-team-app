@@ -11,6 +11,74 @@
       "title": "2026 Spring",
       "startDate": "2026-04-06",
       "endDate": "2026-06-11"
+    },
+    {
+      "id": "season-1786985503745",
+      "title": "26/27 Season",
+      "startDate": "2026-08-31",
+      "endDate": "2027-03-31",
+      "schedule": {
+        "Prep": {
+          "pool": "SCM",
+          "Mon": "17:30",
+          "Tue": "OFF",
+          "Wed": "17:30",
+          "Thu": "OFF",
+          "Fri": "OFF",
+          "Sat": "OFF",
+          "Sun": "17:30"
+        },
+        "Junior 1": {
+          "pool": "SCM",
+          "Mon": "OFF",
+          "Tue": "18:30",
+          "Wed": "OFF",
+          "Thu": "17:30",
+          "Fri": "18:30",
+          "Sat": "OFF",
+          "Sun": "18:30"
+        },
+        "Junior 2": {
+          "pool": "SCM",
+          "Mon": "18:30",
+          "Tue": "OFF",
+          "Wed": "18:30",
+          "Thu": "OFF",
+          "Fri": "18:30",
+          "Sat": "OFF",
+          "Sun": "08:00"
+        },
+        "Senior 1": {
+          "pool": "SCM",
+          "Mon": "19:30",
+          "Tue": "OFF",
+          "Wed": "19:30",
+          "Thu": "18:30",
+          "Fri": "19:30",
+          "Sat": "OFF",
+          "Sun": "08:30"
+        },
+        "Senior 2": {
+          "pool": "SCM",
+          "Mon": "OFF",
+          "Tue": "19:00",
+          "Wed": "OFF",
+          "Thu": "19:00",
+          "Fri": "19:30",
+          "Sat": "OFF",
+          "Sun": "06:30"
+        },
+        "Senior 3": {
+          "pool": "SCM",
+          "Mon": "18:30",
+          "Tue": "19:00",
+          "Wed": "18:30",
+          "Thu": "19:00",
+          "Fri": "OFF",
+          "Sat": "OFF",
+          "Sun": "06:30"
+        }
+      }
     }
   ]
 }

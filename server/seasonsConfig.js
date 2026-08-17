@@ -74,6 +74,32 @@ function validateSeasonsConfig(cfg) {
                     errors.push(`season[${idx}].id "${season.id}" is duplicated`);
                 }
             }
+
+            // schedule: optional per-roster schedule map
+            if (season.schedule != null) {
+                if (typeof season.schedule !== "object" || Array.isArray(season.schedule)) {
+                    errors.push(`season[${idx}].schedule must be an object`);
+                } else {
+                    const validPools = ["SCY", "SCM", "LCM"];
+                    const validDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+                    const timeRe = /^\d{1,2}:\d{2}$/;
+                    for (const [roster, rSched] of Object.entries(season.schedule)) {
+                        if (typeof rSched !== "object" || rSched == null || Array.isArray(rSched)) {
+                            errors.push(`season[${idx}].schedule["${roster}"] must be an object`);
+                            continue;
+                        }
+                        if (rSched.pool != null && !validPools.includes(rSched.pool)) {
+                            errors.push(`season[${idx}].schedule["${roster}"].pool must be SCY, SCM, or LCM`);
+                        }
+                        for (const day of validDays) {
+                            const val = rSched[day];
+                            if (val != null && val !== "OFF" && !timeRe.test(val)) {
+                                errors.push(`season[${idx}].schedule["${roster}"].${day} must be "HH:MM" or "OFF"`);
+                            }
+                        }
+                    }
+                }
+            }
         });
     }
 
