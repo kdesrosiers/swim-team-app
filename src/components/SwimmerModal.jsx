@@ -544,7 +544,7 @@ function TabNotes({ swimmer, onUpdate }) {
   const timerRef = useRef(null);
 
   // Keep notes in sync when modal re-renders with a different swimmer
-  useEffect(() => { setNotes(swimmer.notes || ""); }, [swimmer._id]);
+  useEffect(() => { setNotes(swimmer.notes || ""); }, [swimmer._id, swimmer.notes]);
 
   const saveNotes = useCallback(async (value) => {
     try {
