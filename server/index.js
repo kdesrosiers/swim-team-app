@@ -240,7 +240,10 @@ app.get("/api/practices", async (req, res) => {
   try {
     const { roster = "", season = "", q = "", page = 1, limit = 20 } = req.query;
     const where = {};
-    if (roster) where.roster = roster;
+    if (roster) {
+      const r = roster.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      where.roster = { $regex: `(^|\\/)${r}(\\/|$)`, $options: "i" };
+    }
     if (season) where.season = season;
     if (q) {
       where.$or = [

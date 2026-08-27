@@ -141,12 +141,24 @@ function PracticeBuilder() {
   const [config, setConfig] = useState(null);
   const [seasons, setSeasons] = useState([]);
   const [rosterOptions, setRosterOptions] = useState([]);
-  const [selectedRoster, setSelectedRoster] = useState("");
+  const [selectedRosters, setSelectedRosters] = useState([]);
   const [startTime, setStartTime] = useState("06:00");
   // default to SCM
   const [pool, setPool] = useState("SCM");
   const [saving, setSaving] = useState(false);
 
+  // Derived from selectedRosters — used throughout instead of a single string
+  const primaryRoster = selectedRosters[0] ?? "";
+  const rosterString = selectedRosters.join("/");
+
+  function toggleRoster(name) {
+    setSelectedRosters(prev => {
+      if (prev.includes(name)) {
+        return prev.length === 1 ? prev : prev.filter(r => r !== name);
+      }
+      return [...prev, name];
+    });
+  }
 
   // Load config and seasons once
   useEffect(() => {
@@ -171,13 +183,12 @@ function PracticeBuilder() {
           ? cfg.defaultRoster
           : rosters[0];
 
-        setSelectedRoster(initial);
+        setSelectedRosters([initial]);
       } catch (e) {
         console.error("Failed to load config", e);
-        // sensible defaults if config not reachable
         const fallback = ["Yellow", "Blue", "White", "Bronze", "Silver", "Gold/Platinum"];
         setRosterOptions(fallback);
-        if (!selectedRoster) setSelectedRoster(fallback[0]);
+        if (selectedRosters.length === 0) setSelectedRosters([fallback[0]]);
       }
 
       // Load seasons config
@@ -205,7 +216,7 @@ function PracticeBuilder() {
     }
 
     if (incomingPractice.roster) {
-      setSelectedRoster(incomingPractice.roster);
+      setSelectedRosters(incomingPractice.roster.split("/").filter(Boolean));
     }
 
     if (incomingPractice.pool) {
@@ -255,28 +266,28 @@ function PracticeBuilder() {
   }, [incomingPractice]);
 
   // When date, roster, config, or seasons change, update start time and pool from the active season
-  // (falls back to roster config when no season is active)
+  // (falls back to roster config when no season is active; uses primary/first selected roster)
   useEffect(() => {
-    const st = nextStartFor(seasons, config, selectedRoster, practiceDate);
+    const st = nextStartFor(seasons, config, primaryRoster, practiceDate);
     if (st) setStartTime(st);
     if (!editMode) {
-      setPool(getPoolForRoster(seasons, config, selectedRoster, practiceDate));
+      setPool(getPoolForRoster(seasons, config, primaryRoster, practiceDate));
     }
-  }, [seasons, config, selectedRoster, practiceDate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [seasons, config, primaryRoster, practiceDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!config?.warmups || !selectedRoster) return;
-    const preset = config.warmups[selectedRoster];
+    if (!config?.warmups || !primaryRoster) return;
+    const preset = config.warmups[primaryRoster];
     if (!preset) return;
 
     setSections((prev) => {
       const idx = findWarmupIndex(prev);
-      if (idx === -1) return prev; // no warmup section
+      if (idx === -1) return prev;
       const next = [...prev];
       next[idx] = { ...next[idx], content: preset };
       return next;
     });
-  }, [config, selectedRoster]);
+  }, [config, primaryRoster]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live yardage & time (per section + totals)
   const sectionYardages = useMemo(
@@ -402,7 +413,7 @@ function PracticeBuilder() {
   async function onSave() {
     try {
       const seasonTitle = findSeasonByDate(seasons, practiceDate);
-      const title = `Practice ${formatMDY(practiceDate)}${selectedRoster ? ` ${selectedRoster}` : ""}`;
+      const title = `Practice ${formatMDY(practiceDate)}${rosterString ? ` ${rosterString}` : ""}`;
       const date = practiceDate;
       const poolValue = pool;
 
@@ -437,7 +448,7 @@ function PracticeBuilder() {
           title,
           date,
           pool: poolValue,
-          roster: selectedRoster,
+          roster: rosterString,
           season: seasonTitle || undefined,
           sections: sectionsForApi,
           totals: {
@@ -454,9 +465,9 @@ function PracticeBuilder() {
           practiceTitle: title,
           practiceDate: date,
           pool: poolValue,
-          selectedRoster,
+          selectedRoster: rosterString,
           season: seasonTitle,
-          sections: sectionsWithClockTimes, // pass sections with calculated clock times
+          sections: sectionsWithClockTimes,
           sectionYardages,
           sectionTimes,
           totalYardage,
@@ -477,7 +488,7 @@ function PracticeBuilder() {
   async function handleExportDocx() {
     try {
       const niceDate = formatMDY(practiceDate);
-      const title = `Practice ${niceDate}${selectedRoster ? ` ${selectedRoster}` : ""}`;
+      const title = `Practice ${niceDate}${rosterString ? ` ${rosterString}` : ""}`;
       const poolValue = pool;
 
       // Calculate clock times for group splits before exporting
@@ -510,7 +521,7 @@ function PracticeBuilder() {
       const payload = {
         title,
         date: practiceDate,
-        roster: selectedRoster,
+        roster: rosterString,
         pool: poolValue,
         startTime,
         sections: sectionsForApi,
@@ -519,7 +530,7 @@ function PracticeBuilder() {
 
       const [yyyy, mm, dd] = practiceDate.split("-");
       const dateStr = `${mm}${dd}${yyyy}`;
-      const rosterStr = (selectedRoster || "").replace(/[^a-zA-Z0-9]/g, "");
+      const rosterStr = rosterString.replace(/[^a-zA-Z0-9]/g, "");
       const localFilename = ["Practice", dateStr, rosterStr].filter(Boolean).join(" ") + ".docx";
 
       const { blob, filename } = await exportPracticeDocx(payload, localFilename);
@@ -541,7 +552,7 @@ function PracticeBuilder() {
     setSaving(true);
     try {
       const seasonTitle = findSeasonByDate(seasons, practiceDate);
-      const title = `Practice ${formatMDY(practiceDate)}${selectedRoster ? ` ${selectedRoster}` : ""}`;
+      const title = `Practice ${formatMDY(practiceDate)}${rosterString ? ` ${rosterString}` : ""}`;
       const date = practiceDate;
       const poolValue = pool;
 
@@ -577,7 +588,7 @@ function PracticeBuilder() {
         practiceTitle: title,
         practiceDate: date,
         pool: poolValue,
-        selectedRoster,
+        selectedRoster: rosterString,
         season: seasonTitle,
         sections: sectionsWithClockTimes,
         sectionYardages,
@@ -591,13 +602,13 @@ function PracticeBuilder() {
       // 2) EXPORT — same blob-download pattern as handleExportDocx
       const [yyyy, mm, dd] = date.split("-");
       const dateStr = `${mm}${dd}${yyyy}`;
-      const rosterStr = (selectedRoster || "").replace(/[^a-zA-Z0-9]/g, "");
+      const rosterStr = rosterString.replace(/[^a-zA-Z0-9]/g, "");
       const localFilename = ["Practice", dateStr, rosterStr].filter(Boolean).join(" ") + ".docx";
 
       const { blob, filename } = await exportPracticeDocx({
         title,
         date,
-        roster: selectedRoster,
+        roster: rosterString,
         pool: poolValue,
         startTime,
         sections: sectionsForApi,
@@ -631,7 +642,7 @@ function PracticeBuilder() {
     const defaultRosterFromConfig = config?.defaultRoster && rosterOptions.includes(config.defaultRoster)
       ? config.defaultRoster
       : rosterOptions[0] || "";
-    setSelectedRoster(defaultRosterFromConfig);
+    setSelectedRosters(defaultRosterFromConfig ? [defaultRosterFromConfig] : []);
     setPool("SCM");
     setSections([
       {
@@ -871,17 +882,21 @@ function PracticeBuilder() {
               )}
             </label>
 
-            <label className="pair">
+            <div className="pair">
               <span>Roster:</span>
-              <select
-                value={selectedRoster}
-                onChange={(e) => setSelectedRoster(e.target.value)}
-              >
+              <div className="roster-chips">
                 {rosterOptions.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <button
+                    key={r}
+                    type="button"
+                    className={`roster-chip${selectedRosters.includes(r) ? " roster-chip--active" : ""}`}
+                    onClick={() => toggleRoster(r)}
+                  >
+                    {r}
+                  </button>
                 ))}
-              </select>
-            </label>
+              </div>
+            </div>
 
             <label className="pair">
               <span>Start:</span>

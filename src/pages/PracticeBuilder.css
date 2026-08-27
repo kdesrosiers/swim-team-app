@@ -67,6 +67,44 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.roster-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.roster-chip {
+  padding: 4px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  background: white;
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.roster-chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.roster-chip--active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.roster-chip--active:hover {
+  background: var(--primary-dark, #1d4ed8);
+  border-color: var(--primary-dark, #1d4ed8);
+  color: white;
+}
+
 .toolbar input,
 .toolbar select {
   padding: var(--space-sm) var(--space-md);
