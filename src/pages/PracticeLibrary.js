@@ -8,6 +8,9 @@ import { getConfig } from "../api/config";
 import { getSeasons } from "../api/seasons";
 import PracticePreview from "../components/PracticePreview";
 import NotesEditor from "../components/NotesEditor";
+import { downloadBlob } from "../utils/downloadBlob";
+import { requestDriveToken, uploadDocxToDrive } from "../lib/googleDrive";
+import ExportDropdownButton from "../components/ExportDropdownButton";
 import "./PracticeLibrary.css";
 
 const FALLBACK_ROSTERS = ["Gold/Platinum", "Gold", "Platinum", "Silver", "Bronze", "White", "Blue", "Yellow"];
@@ -137,36 +140,40 @@ export default function PracticeLibrary() {
     });
   }
 
-  async function handleExportDocx() {
-    if (!selected) return;
-    try {
-      const sectionsForApi = (selected.sections || []).map(s => {
-        if ((s.type || "").toLowerCase() === "group-split") {
-          return {
-            type: "group-split",
-            title: s.name || s.title || "Group Split",
-            groups: s.groups || [],
-            longestTimeSeconds: s.longestTimeSeconds || 0,
-          };
-        }
-        const text = s.content || s.text || "";
-        const type = (s.type || "").toLowerCase();
+  function buildExportPayload() {
+    const sectionsForApi = (selected.sections || []).map(s => {
+      if ((s.type || "").toLowerCase() === "group-split") {
         return {
-          type: type === "break" ? "Break" : "swim",
-          title: s.name || s.title || (type === "break" ? "Break" : "Section"),
-          text,
-          yardage: type !== "break" ? parseYardage(text) : 0,
-          timeSeconds: computeSectionTimeSeconds({ type: type === "break" ? "break" : "swim", content: text }),
+          type: "group-split",
+          title: s.name || s.title || "Group Split",
+          groups: s.groups || [],
+          longestTimeSeconds: s.longestTimeSeconds || 0,
         };
-      });
+      }
+      const text = s.content || s.text || "";
+      const type = (s.type || "").toLowerCase();
+      return {
+        type: type === "break" ? "Break" : "swim",
+        title: s.name || s.title || (type === "break" ? "Break" : "Section"),
+        text,
+        yardage: type !== "break" ? parseYardage(text) : 0,
+        timeSeconds: computeSectionTimeSeconds({ type: type === "break" ? "break" : "swim", content: text }),
+      };
+    });
 
-      const totalYardage = sectionsForApi.reduce((sum, s) => sum + (s.yardage || 0), 0);
-      const totalTimeSeconds = sectionsForApi.reduce((sum, s) => {
-        if (s.type === "group-split") return sum + (s.longestTimeSeconds || 0);
-        return sum + (s.timeSeconds || 0);
-      }, 0);
+    const totalYardage = sectionsForApi.reduce((sum, s) => sum + (s.yardage || 0), 0);
+    const totalTimeSeconds = sectionsForApi.reduce((sum, s) => {
+      if (s.type === "group-split") return sum + (s.longestTimeSeconds || 0);
+      return sum + (s.timeSeconds || 0);
+    }, 0);
 
-      const payload = {
+    const [yyyy, mm, dd] = (selected.date || "").split("-");
+    const dateStr = yyyy ? `${mm}${dd}${yyyy}` : "";
+    const rosterStr = (selected.roster || roster || "").replace(/[^a-zA-Z0-9]/g, "");
+    const localFilename = ["Practice", dateStr, rosterStr].filter(Boolean).join(" ") + ".docx";
+
+    return {
+      payload: {
         title: selected.title || `Practice ${selected.date}`,
         date: selected.date,
         roster: selected.roster || roster,
@@ -174,21 +181,42 @@ export default function PracticeLibrary() {
         startTime,
         sections: sectionsForApi,
         totals: { yardage: totalYardage, timeSeconds: totalTimeSeconds },
-      };
+      },
+      localFilename,
+    };
+  }
 
-      const [yyyy, mm, dd] = (selected.date || "").split("-");
-      const dateStr = yyyy ? `${mm}${dd}${yyyy}` : "";
-      const rosterStr = (selected.roster || roster || "").replace(/[^a-zA-Z0-9]/g, "");
-      const localFilename = ["Practice", dateStr, rosterStr].filter(Boolean).join(" ") + ".docx";
+  async function driveExport(blob, filename) {
+    try {
+      const accessToken = await requestDriveToken();
+      const result = await uploadDocxToDrive({ accessToken, blob, name: filename });
+      toast.success(
+        <span>
+          Saved to Google Drive.{" "}
+          <a href={result.webViewLink} target="_blank" rel="noopener noreferrer">
+            Open
+          </a>
+        </span>
+      );
+    } catch (e) {
+      if (e.cancelled) return;
+      console.error(e);
+      toast.error(e.message || "Google Drive upload failed.");
+    }
+  }
 
-      const { blob, filename } = await exportPracticeDocx(payload, localFilename);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Export downloaded!");
+  async function handleExport(destination) {
+    if (!selected) return;
+    try {
+      const { payload, localFilename } = buildExportPayload();
+      const exportPayload = destination === "drive" ? { ...payload, format: "drive" } : payload;
+      const { blob, filename } = await exportPracticeDocx(exportPayload, localFilename);
+      if (destination === "drive") {
+        await driveExport(blob, filename);
+      } else {
+        downloadBlob(blob, filename);
+        toast.success("Export downloaded!");
+      }
     } catch (e) {
       console.error(e);
       toast.error(e.message || "Failed to export");
@@ -362,9 +390,14 @@ export default function PracticeLibrary() {
               <button className="btn-template" onClick={handleUseTemplate}>
                 📋 Use Template
               </button>
-              <button className="btn-export" onClick={handleExportDocx}>
-                ⬇️ Export Word
-              </button>
+              <ExportDropdownButton
+                label="Export"
+                icon="⬇️"
+                onDocx={() => handleExport("docx")}
+                onDrive={() => handleExport("drive")}
+                driveAvailable={!!process.env.REACT_APP_GOOGLE_CLIENT_ID}
+                storageKey="libraryExportDest"
+              />
             </div>
           )}
           <div className="practice-preview-card">

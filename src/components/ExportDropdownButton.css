@@ -1,0 +1,56 @@
+.export-split-btn {
+  position: relative;
+  display: inline-flex;
+}
+
+.export-split-btn__primary {
+  border-radius: var(--radius-md) 0 0 var(--radius-md) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.export-split-btn__chevron {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+  padding: var(--space-sm) 0.6rem !important;
+  min-width: 2rem;
+  font-size: 0.75rem;
+}
+
+.export-split-btn__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: var(--bg, #ffffff);
+  border: 1px solid var(--gray-200, #e5e7eb);
+  border-radius: var(--radius-md, 0.5rem);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  min-width: 11rem;
+  z-index: 200;
+}
+
+.export-split-btn__menu [role="menuitem"] {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-700, #374151);
+  white-space: nowrap;
+}
+
+.export-split-btn__menu [role="menuitem"]:hover:not(:disabled),
+.export-split-btn__menu [role="menuitem"]:focus:not(:disabled) {
+  background: var(--gray-100, #f3f4f6);
+  outline: none;
+}
+
+.export-split-btn__menu [role="menuitem"]:disabled {
+  color: var(--gray-400, #9ca3af);
+  cursor: not-allowed;
+}

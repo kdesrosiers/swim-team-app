@@ -21,6 +21,9 @@ import { aggregatePracticeStats, setAcronymsConfig } from "../utils/statsParser"
 import { calculateSectionTime, calculateSectionYardage } from "../utils/intervalParser";
 import { calculatePracticeClockTimes, hasGroupSplits as checkHasGroupSplits } from "../utils/groupSyncCalculator";
 import GroupSplitSection from "../components/GroupSplitSection";
+import { downloadBlob } from "../utils/downloadBlob";
+import { requestDriveToken, uploadDocxToDrive } from "../lib/googleDrive";
+import ExportDropdownButton from "../components/ExportDropdownButton";
 
 import {
   DndContext,
@@ -484,110 +487,103 @@ function PracticeBuilder() {
     }
   }
 
-  // Export
-  async function handleExportDocx() {
-    try {
-      const niceDate = formatMDY(practiceDate);
-      const title = `Practice ${niceDate}${rosterString ? ` ${rosterString}` : ""}`;
-      const poolValue = pool;
+  // Build the export payload from current practice state (shared by both export handlers)
+  function buildExportPayload() {
+    const title = `Practice ${formatMDY(practiceDate)}${rosterString ? ` ${rosterString}` : ""}`;
 
-      // Calculate clock times for group splits before exporting
-      const sectionsWithClockTimes = checkHasGroupSplits(sections)
-        ? calculatePracticeClockTimes(sections, startTime).sections
-        : sections;
+    const sectionsWithClockTimes = checkHasGroupSplits(sections)
+      ? calculatePracticeClockTimes(sections, startTime).sections
+      : sections;
 
-      const sectionsForApi = sectionsWithClockTimes.map((s, i) => {
-        if (s.type === "group-split") {
-          return {
-            type: "group-split",
-            title: s.name || "Group Split",
-            groups: s.groups || [],
-            longestTimeSeconds: s.longestTimeSeconds,
-            pacingGroup: s.pacingGroup,
-            divergenceSeconds: s.divergenceSeconds,
-          };
-        }
+    const sectionsForApi = sectionsWithClockTimes.map((s, i) => {
+      if (s.type === "group-split") {
         return {
-          type: s.type === "break" ? "Break" : "swim",
-          title: s.name || (s.type === "break" ? "Break" : "Section"),
-          text: s.content || "",
-          yardage: sectionYardages[i] ?? 0,
-          timeSeconds: sectionTimes[i] ?? 0,
+          type: "group-split",
+          title: s.name || "Group Split",
+          groups: s.groups || [],
+          longestTimeSeconds: s.longestTimeSeconds,
+          pacingGroup: s.pacingGroup,
+          divergenceSeconds: s.divergenceSeconds,
         };
-      });
+      }
+      return {
+        type: s.type === "break" ? "Break" : "swim",
+        title: s.name || (s.type === "break" ? "Break" : "Section"),
+        text: s.content || "",
+        yardage: sectionYardages[i] ?? 0,
+        timeSeconds: sectionTimes[i] ?? 0,
+      };
+    });
 
-      const totals = { yardage: totalYardage, timeSeconds: totalTimeSec };
+    const [yyyy, mm, dd] = practiceDate.split("-");
+    const dateStr = `${mm}${dd}${yyyy}`;
+    const rosterStr = rosterString.replace(/[^a-zA-Z0-9]/g, "");
+    const localFilename = ["Practice", dateStr, rosterStr].filter(Boolean).join(" ") + ".docx";
 
-      const payload = {
+    return {
+      payload: {
         title,
         date: practiceDate,
         roster: rosterString,
-        pool: poolValue,
+        pool,
         startTime,
         sections: sectionsForApi,
-        totals,
-      };
+        totals: { yardage: totalYardage, timeSeconds: totalTimeSec },
+      },
+      localFilename,
+      sectionsWithClockTimes,
+      title,
+    };
+  }
 
-      const [yyyy, mm, dd] = practiceDate.split("-");
-      const dateStr = `${mm}${dd}${yyyy}`;
-      const rosterStr = rosterString.replace(/[^a-zA-Z0-9]/g, "");
-      const localFilename = ["Practice", dateStr, rosterStr].filter(Boolean).join(" ") + ".docx";
+  async function driveExport(blob, filename) {
+    try {
+      const accessToken = await requestDriveToken();
+      const result = await uploadDocxToDrive({ accessToken, blob, name: filename });
+      toast.success(
+        <span>
+          Saved to Google Drive.{" "}
+          <a href={result.webViewLink} target="_blank" rel="noopener noreferrer">
+            Open
+          </a>
+        </span>
+      );
+    } catch (e) {
+      if (e.cancelled) return;
+      console.error(e);
+      toast.error(e.message || "Google Drive upload failed.");
+    }
+  }
 
-      const { blob, filename } = await exportPracticeDocx(payload, localFilename);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Export downloaded!");
+  async function handleExport(destination) {
+    try {
+      const { payload, localFilename } = buildExportPayload();
+      const exportPayload = destination === "drive" ? { ...payload, format: "drive" } : payload;
+      const { blob, filename } = await exportPracticeDocx(exportPayload, localFilename);
+      if (destination === "drive") {
+        await driveExport(blob, filename);
+      } else {
+        downloadBlob(blob, filename);
+        toast.success("Export downloaded!");
+      }
     } catch (e) {
       console.error(e);
       toast.error(e.message || "Failed to export. Check console for details.");
     }
   }
 
-  async function onSaveAndExport() {
+  async function handleSaveAndExport(destination) {
     if (saving) return;
     setSaving(true);
     try {
+      const { payload, localFilename, sectionsWithClockTimes, title } = buildExportPayload();
       const seasonTitle = findSeasonByDate(seasons, practiceDate);
-      const title = `Practice ${formatMDY(practiceDate)}${rosterString ? ` ${rosterString}` : ""}`;
-      const date = practiceDate;
-      const poolValue = pool;
 
-      // Calculate clock times for group splits
-      const sectionsWithClockTimes = checkHasGroupSplits(sections)
-        ? calculatePracticeClockTimes(sections, startTime).sections
-        : sections;
-
-      const sectionsForApi = sectionsWithClockTimes.map((s, i) => {
-        if (s.type === "group-split") {
-          return {
-            type: "group-split",
-            title: s.name || "Group Split",
-            groups: s.groups || [],
-            longestTimeSeconds: s.longestTimeSeconds,
-            pacingGroup: s.pacingGroup,
-            divergenceSeconds: s.divergenceSeconds,
-          };
-        }
-        return {
-          type: s.type === "break" ? "Break" : "swim",
-          title: s.name || (s.type === "break" ? "Break" : "Section"),
-          text: s.content || "",
-          yardage: sectionYardages[i] ?? 0,
-          timeSeconds: sectionTimes[i] ?? 0,
-        };
-      });
-
-      const totals = { yardage: totalYardage, timeSeconds: totalTimeSec };
-
-      // 1) SAVE (use the helper so it maps and persists consistently)
+      // 1) Save first — export only if save succeeds
       await handleSavePractice({
         practiceTitle: title,
-        practiceDate: date,
-        pool: poolValue,
+        practiceDate,
+        pool,
         selectedRoster: rosterString,
         season: seasonTitle,
         sections: sectionsWithClockTimes,
@@ -599,30 +595,15 @@ function PracticeBuilder() {
         startTime,
       });
 
-      // 2) EXPORT — same blob-download pattern as handleExportDocx
-      const [yyyy, mm, dd] = date.split("-");
-      const dateStr = `${mm}${dd}${yyyy}`;
-      const rosterStr = rosterString.replace(/[^a-zA-Z0-9]/g, "");
-      const localFilename = ["Practice", dateStr, rosterStr].filter(Boolean).join(" ") + ".docx";
-
-      const { blob, filename } = await exportPracticeDocx({
-        title,
-        date,
-        roster: rosterString,
-        pool: poolValue,
-        startTime,
-        sections: sectionsForApi,
-        totals,
-      }, localFilename);
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      toast.success("Saved & exported!", { duration: 6000 });
+      // 2) Export
+      const exportPayload = destination === "drive" ? { ...payload, format: "drive" } : payload;
+      const { blob, filename } = await exportPracticeDocx(exportPayload, localFilename);
+      if (destination === "drive") {
+        await driveExport(blob, filename);
+      } else {
+        downloadBlob(blob, filename);
+        toast.success("Saved & exported!", { duration: 6000 });
+      }
     } catch (e) {
       console.error(e);
       toast.error(e.message || "Save & Export failed. Check console for details.");
@@ -975,10 +956,24 @@ function PracticeBuilder() {
               </div>
               <div className="actions">
                 <button className="preview-btn" onClick={onSave}>💾 Save Practice</button>
-                <button className="preview-btn" onClick={handleExportDocx}>⬇️ Export Word</button>
-                <button className="preview-btn" onClick={onSaveAndExport} disabled={saving}>
-                  💾⬇️ Save & Export
-                </button>
+                <ExportDropdownButton
+                  label="Export"
+                  icon="⬇️"
+                  onDocx={() => handleExport("docx")}
+                  onDrive={() => handleExport("drive")}
+                  disabled={saving}
+                  driveAvailable={!!process.env.REACT_APP_GOOGLE_CLIENT_ID}
+                  storageKey="practiceExportDest"
+                />
+                <ExportDropdownButton
+                  label="Save & Export"
+                  icon="💾⬇️"
+                  onDocx={() => handleSaveAndExport("docx")}
+                  onDrive={() => handleSaveAndExport("drive")}
+                  disabled={saving}
+                  driveAvailable={!!process.env.REACT_APP_GOOGLE_CLIENT_ID}
+                  storageKey="practiceSaveExportDest"
+                />
                 <button className="preview-btn secondary" onClick={handleReset}>🔄 New Practice</button>
               </div>
             </div>

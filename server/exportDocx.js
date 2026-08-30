@@ -39,23 +39,33 @@ function p(text = "", opts = {}) {
   });
 }
 
-// Borders config used by the group-split table (section columns stay visually separated).
-const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
-const ALL_NO_BORDERS = {
-  top: NO_BORDER, bottom: NO_BORDER,
-  left: NO_BORDER, right: NO_BORDER,
-  insideHorizontal: NO_BORDER, insideVertical: NO_BORDER,
-};
-
-function headerLine(leftText, rightText, rightTabPos) {
-  return new Paragraph({
-    spacing: { before: 60, after: 30 },
-    tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
-    children: [
-      new TextRun({ text: leftText, bold: true }),
-      new TextRun({ text: "\t" + rightText, bold: true }),
-    ],
-  });
+// Returns an array so callers always use push(...headerLine(...))
+function headerLine(leftText, rightText, rightTabPos, format) {
+  if (format === "drive") {
+    // Two plain paragraphs — Google Docs renders these reliably
+    return [
+      new Paragraph({
+        spacing: { before: 60, after: 0 },
+        children: [new TextRun({ text: leftText, bold: true })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 0, after: 40 },
+        children: [new TextRun({ text: rightText, bold: true })],
+      }),
+    ];
+  }
+  // Original tab-stop layout for Word downloads
+  return [
+    new Paragraph({
+      spacing: { before: 60, after: 30 },
+      tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
+      children: [
+        new TextRun({ text: leftText, bold: true }),
+        new TextRun({ text: "\t" + rightText, bold: true }),
+      ],
+    }),
+  ];
 }
 // -------------------------------------------
 
@@ -68,6 +78,7 @@ export async function exportPracticeToDocx(practice) {
     startTime = "06:00",        // "HH:MM" 24h from the UI
     sections = [],
     totals = { yardage: 0, timeSeconds: 0 },
+    format = "docx",            // "docx" (Word download) | "drive" (Google Drive upload)
   } = practice || {};
 
   // Page settings (US Letter, 1" margins)
@@ -136,90 +147,104 @@ export async function exportPracticeToDocx(practice) {
         groupTotals[group.name].timeSeconds += group.totalTimeSeconds || 0;
       });
 
-      // Create table for groups with individual headers (NO TOTALS ROW)
-      const columnWidth = Math.floor(textWidth / groups.length);
-      const tableRows = [];
+            if (format === "drive") {
+        // Drive: render each group as stacked sections — tables do not survive Google's importer
+        groups.forEach((group, gIdx) => {
+          const groupTime = group.totalTimeSeconds || 0;
+          const groupEnd = clock + groupTime;
+          const groupEndRounded = ceilToMinute(groupEnd);
+          const leftText = (group.name || "Group") + " – " + formatNumber(group.totalYardage || 0) + "m";
+          const rightText = formatSeconds(groupTime) + "  →  " + formatClock12(groupEndRounded, false);
 
-      // Header row - each group has its own header with yardage and time FOR THIS SPLIT ONLY
-      tableRows.push(
-        new TableRow({
-          children: groups.map(group => {
-            const groupTime = group.totalTimeSeconds || 0;
-            const groupEnd = clock + groupTime;
-            const groupEndRounded = ceilToMinute(groupEnd);
-            const leftText = `${group.name || "Group"} - ${formatNumber(group.totalYardage || 0)}m`;
-            const rightText = `${formatSeconds(groupTime)}  \u2192  ${formatClock12(groupEndRounded, false)}`;
+          docChildren.push(...headerLine(leftText, rightText, rightTab, format));
 
-            return new TableCell({
-              width: { size: columnWidth, type: WidthType.DXA },
-              verticalAlign: VerticalAlign.CENTER,
-              margins: { top: 100, bottom: 100, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [new TextRun({ text: leftText, bold: true })],
-                }),
-                new Paragraph({
-                  alignment: AlignmentType.RIGHT,
-                  children: [new TextRun({ text: rightText, bold: true })],
-                }),
-              ]
-            });
-          })
-        })
-      );
-
-      // Find max number of lines across all groups (counting all text lines in all sections)
-      const maxLines = Math.max(...groups.map(group => {
-        return (group.sections || []).reduce((total, sec) => {
-          return total + (sec.text || "").split("\n").length;
-        }, 0);
-      }), 0);
-
-      // Content rows - display all practice text for each group
-      const groupContentLines = groups.map(group => {
-        const allLines = [];
-        (group.sections || []).forEach(sec => {
-          (sec.text || "").split("\n").forEach(line => {
-            allLines.push(line);
+          const allLines = [];
+          (group.sections || []).forEach(sec => {
+            (sec.text || "").split("\n").forEach(line => allLines.push(line));
           });
-        });
-        return allLines;
-      });
 
-      for (let i = 0; i < maxLines; i++) {
+          let depth = 0;
+          allLines.forEach(ln => {
+            const trimmed = ln.trim();
+            const tabs = (ln.match(/^\t+/) || [""])[0].length;
+            if (trimmed === "}" || trimmed.startsWith("}")) depth = Math.max(0, depth - 1);
+            docChildren.push(p(trimmed === "" ? " " : trimmed, { indent: TWIP.indent + (TWIP.indent / 2) * Math.max(depth, tabs), before: 0, after: 0 }));
+            if (trimmed.endsWith("{")) depth++;
+          });
+
+          if (gIdx < groups.length - 1) docChildren.push(p(" ", { before: 20, after: 20 }));
+        });
+      } else {
+        // Word: original side-by-side table layout
+        const columnWidth = Math.floor(textWidth / groups.length);
+        const tableRows = [];
+
         tableRows.push(
           new TableRow({
-            children: groups.map((_group, gIdx) => {
-              const line = groupContentLines[gIdx][i] || "";
+            children: groups.map(group => {
+              const groupTime = group.totalTimeSeconds || 0;
+              const groupEnd = clock + groupTime;
+              const groupEndRounded = ceilToMinute(groupEnd);
+              const leftText = (group.name || "Group") + " - " + formatNumber(group.totalYardage || 0) + "m";
+              const rightText = formatSeconds(groupTime) + "  →  " + formatClock12(groupEndRounded, false);
+
               return new TableCell({
                 width: { size: columnWidth, type: WidthType.DXA },
-                verticalAlign: VerticalAlign.TOP,
-                margins: { top: 0, bottom: 0, left: 200, right: 100 },
+                verticalAlign: VerticalAlign.CENTER,
+                margins: { top: 100, bottom: 100, left: 100, right: 100 },
                 children: [
-                  new Paragraph({
-                    children: [new TextRun({ text: line || " " })]
-                  })
+                  new Paragraph({ children: [new TextRun({ text: leftText, bold: true })] }),
+                  new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: rightText, bold: true })] }),
                 ]
               });
             })
           })
         );
+
+        const maxLines = Math.max(...groups.map(group =>
+          (group.sections || []).reduce((total, sec) => total + (sec.text || "").split("\n").length, 0)
+        ), 0);
+
+        const groupContentLines = groups.map(group => {
+          const allLines = [];
+          (group.sections || []).forEach(sec => {
+            (sec.text || "").split("\n").forEach(line => allLines.push(line));
+          });
+          return allLines;
+        });
+
+        for (let i = 0; i < maxLines; i++) {
+          tableRows.push(
+            new TableRow({
+              children: groups.map((_group, gIdx) => {
+                const line = groupContentLines[gIdx][i] || "";
+                return new TableCell({
+                  width: { size: columnWidth, type: WidthType.DXA },
+                  verticalAlign: VerticalAlign.TOP,
+                  margins: { top: 0, bottom: 0, left: 200, right: 100 },
+                  children: [new Paragraph({ children: [new TextRun({ text: line || " " })] })]
+                });
+              })
+            })
+          );
+        }
+
+        const table = new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: tableRows,
+          borders: {
+            top: { style: BorderStyle.NONE },
+            bottom: { style: BorderStyle.NONE },
+            left: { style: BorderStyle.NONE },
+            right: { style: BorderStyle.NONE },
+            insideHorizontal: { style: BorderStyle.NONE },
+            insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" }
+          }
+        });
+
+        docChildren.push(table);
       }
 
-      const table = new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: tableRows,
-        borders: {
-          top: { style: BorderStyle.NONE },
-          bottom: { style: BorderStyle.NONE },
-          left: { style: BorderStyle.NONE },
-          right: { style: BorderStyle.NONE },
-          insideHorizontal: { style: BorderStyle.NONE },
-          insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" }
-        }
-      });
-
-      docChildren.push(table);
       clock = end;
       docChildren.push(p(" ", { before: 60, after: 120 }));
     } else {
@@ -234,12 +259,27 @@ export async function exportPracticeToDocx(practice) {
 
       const rightText = `${formatSeconds(dur)}  \u2192  ${formatClock12(endRounded, false)}`;
 
-      docChildren.push(headerLine(leftTitle, rightText, rightTab));
+      docChildren.push(...headerLine(leftTitle, rightText, rightTab, format));
 
       const lines = (s?.text || "").split("\n");
-      lines.forEach((ln) => {
-        docChildren.push(p(ln.trim() === "" ? " " : ln, { indent: TWIP.indent, before: 0, after: 0 }));
-      });
+      if (format === "drive") {
+        // Brace-aware indentation for Google Drive (plain paragraphs only)
+        let depth = 0;
+        lines.forEach((ln) => {
+          const trimmed = ln.trim();
+          const tabs = (ln.match(/^\t+/) || [""])[0].length;
+          if (trimmed === "}" || trimmed.startsWith("}")) depth = Math.max(0, depth - 1);
+          docChildren.push(p(trimmed === "" ? " " : trimmed, { indent: TWIP.indent + (TWIP.indent / 2) * Math.max(depth, tabs), before: 0, after: 0 }));
+          if (trimmed.endsWith("{")) depth++;
+        });
+      } else {
+        // Original flat indentation for Word downloads
+        lines.forEach((ln) => {
+          const trimmed = ln.trim();
+          const tabs = (ln.match(/^\t+/) || [""])[0].length;
+          docChildren.push(p(trimmed === "" ? " " : trimmed, { indent: TWIP.indent + (TWIP.indent / 2) * tabs, before: 0, after: 0 }));
+        });
+      }
 
       // Add shared section yardage/time
       const sectionYardage = s?.yardage ?? 0;
@@ -271,7 +311,7 @@ export async function exportPracticeToDocx(practice) {
       const totalRight = groupTotal.timeSeconds > 0
         ? `${formatSeconds(groupTotal.timeSeconds)}  \u2192  ${formatClock12(ceilToMinute(startSec + groupTotal.timeSeconds), false)}`
         : "";
-      docChildren.push(headerLine(totalLeft, totalRight, rightTab));
+      docChildren.push(...headerLine(totalLeft, totalRight, rightTab, format));
     });
   } else {
     const totalLeft = `Total: ${formatNumber(totals?.yardage ?? 0)}m`;
@@ -279,7 +319,7 @@ export async function exportPracticeToDocx(practice) {
       (totals?.timeSeconds ?? 0) > 0
         ? `${formatSeconds(totals.timeSeconds)}  \u2192  ${formatClock12(ceilToMinute(startSec + (totals.timeSeconds || 0)), false)}`
         : "";
-    docChildren.push(headerLine(totalLeft, totalRight, rightTab));
+    docChildren.push(...headerLine(totalLeft, totalRight, rightTab, format));
   }
 
   // Build document
